@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Indice KP (Graphique)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      padding: 10px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 10px;
+    }
+    #chart-container {
+      width: 100%;
+      height: 90vh; /* plus haut = moins écrasé */
+    }
+  </style>
+</head>
+<body>
+
+<h2>Indice KP (NOAA) — Dernières données</h2>
+
+<div id="chart-container">
+  <canvas id="kpChart"></canvas>
+</div>
+
+<script>
+  const url = "https://services.swpc.noaa.gov/json/planetary_k_index_1m.json";
+
+  fetch(url)
+    .then(response => response.json())
+    .then(data => {
+      const last = data.slice(-5); // 5 dernières valeurs
+
+      const labels = last.map(item => item.time_tag.replace("T", " ").slice(0, 16));
+      const kpValues = last.map(item => item.kp_index);
+
+      // Couleurs selon intensité KP
+      const colors = kpValues.map(kp => {
+        if (kp <= 3) return "rgba(0, 200, 0, 0.9)";        // Vert
+        if (kp <= 5) return "rgba(255, 140, 0, 0.9)";      // Orange
+        if (kp <= 7) return "rgba(255, 0, 0, 0.9)";        // Rouge
+        return "rgba(200, 0, 255, 0.9)";                   // Pourpre
+      });
+
+      const ctx = document.getElementById("kpChart").getContext("2d");
+
+      new Chart(ctx, {
+        type: "bar",
+        data: {
+          labels: labels,
+          datasets: [{
+            label: "KP Index",
+            data: kpValues,
+            backgroundColor: colors,
+            borderColor: "#fff",
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false, // évite l’écrasement
+          scales: {
+            y: {
+              beginAtZero: true,
+              max: 9,
+              ticks: { color: "#fff" }
+            },
+            x: {
+              ticks: { color: "#fff" }
+            }
+          },
+          plugins: {
+            legend: { labels: { color: "#fff" } }
+          }
+        }
+      });
+    })
+    .catch(err => {
+      document.body.innerHTML = "<h2>Erreur de chargement NOAA</h2><p>" + err + "</p>";
+    });
+</script>
+
+</body>
+</html>
