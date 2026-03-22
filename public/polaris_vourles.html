@@ -21,12 +21,17 @@
     position: relative;
   }
   #polaris {
-    width: 12px;
-    height: 12px;
+    width: 14px;
+    height: 14px;
     background: #00aaff;
     border-radius: 50%;
     position: absolute;
     transform: translate(-50%, -50%);
+  }
+  .hour {
+    position: absolute;
+    color: #aaa;
+    font-size: 14px;
   }
 </style>
 </head>
@@ -36,8 +41,27 @@
 <p id="info">Chargement…</p>
 
 <div id="scope">
+
+  <!-- Les 12 heures -->
+  <div class="hour" style="top:-12px; left:50%; transform:translateX(-50%);">0</div>
+  <div class="hour" style="top:25px; left:85%; transform:translateX(-50%);">1</div>
+  <div class="hour" style="top:75px; left:97%; transform:translateX(-50%);">2</div>
+  <div class="hour" style="top:50%; right:-20px; transform:translateY(-50%);">3</div>
+  <div class="hour" style="bottom:75px; left:97%; transform:translateX(-50%);">4</div>
+  <div class="hour" style="bottom:25px; left:85%; transform:translateX(-50%);">5</div>
+  <div class="hour" style="bottom:-12px; left:50%; transform:translateX(-50%);">6</div>
+  <div class="hour" style="bottom:25px; left:15%; transform:translateX(-50%);">7</div>
+  <div class="hour" style="bottom:75px; left:3%; transform:translateX(-50%);">8</div>
+  <div class="hour" style="top:50%; left:-20px; transform:translateY(-50%);">9</div>
+  <div class="hour" style="top:75px; left:3%; transform:translateX(-50%);">10</div>
+  <div class="hour" style="top:25px; left:15%; transform:translateX(-50%);">11</div>
+
   <div id="polaris"></div>
 </div>
+
+<p id="scopepos" style="margin-top:10px; font-size:18px; color:#0af;">
+  Calcul en cours…
+</p>
 
 <script>
 async function loadPolaris() {
@@ -49,23 +73,36 @@ async function loadPolaris() {
      Angle horaire : ${data.hour_angle.toFixed(2)} h<br>
      Rotation réticule : ${data.reticle_angle.toFixed(1)}°`;
 
-  // Position dans le cercle (x,y entre -1 et 1)
+  // Polaris brute
   const x = data.x;
   const y = data.y;
 
+  // Rotation du réticule EQ6
+  const angle = data.reticle_angle * Math.PI / 180;
+  const xr = x * Math.cos(angle) - y * Math.sin(angle);
+  const yr = x * Math.sin(angle) + y * Math.cos(angle);
+
+  // Polaris doit être sur le cercle
   const scope = document.getElementById("scope");
+  const radius = scope.clientWidth / 2;
   const polaris = document.getElementById("polaris");
 
-  const radius = scope.clientWidth / 2;
+  const norm = Math.sqrt(xr * xr + yr * yr);
+  const nx = xr / norm;
+  const ny = yr / norm;
 
-  polaris.style.left = (radius + x * radius) + "px";
-  polaris.style.top  = (radius - y * radius) + "px";
+  polaris.style.left = (radius + nx * radius) + "px";
+  polaris.style.top  = (radius - ny * radius) + "px";
+
+  // Position Polaris dans le viseur (en heures)
+  const scopePos = (data.hour_angle + data.reticle_angle / 15) % 12;
+  document.getElementById("scopepos").innerHTML =
+    "Polaris in the scope : " + scopePos.toFixed(2) + " h";
 }
 
 loadPolaris();
-setInterval(loadPolaris, 60000); // mise à jour toutes les minutes
+setInterval(loadPolaris, 60000);
 </script>
 
 </body>
 </html>
-
