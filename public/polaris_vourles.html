@@ -3,130 +3,253 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Polaris Master Control</title>
+    <title>Polaris Pro - Vourles & Lans</title>
     <style>
-        body { background: #000; color: #ff3333; font-family: 'Courier New', monospace; text-align: center; padding: 10px; }
-        .card { border: 2px solid #440000; display: inline-block; padding: 15px; border-radius: 12px; background: #0a0a0a; width: 320px; }
-        .val { font-size: 2.2em; font-weight: bold; color: #fff; text-shadow: 0 0 10px #ff0000; }
-        canvas { background: #000; border: 1px solid #222; border-radius: 50%; margin: 15px 0; }
-        .btn-group { margin: 10px 0; display: flex; justify-content: space-around; }
-        button { background: #330000; color: #ff3333; border: 1px solid #ff3333; padding: 5px 10px; cursor: pointer; font-size: 10px; }
-        button:hover { background: #ff3333; color: #000; }
-        #site-name { font-weight: bold; color: #00ff00; margin-bottom: 5px; }
+        body { 
+            background: #000; 
+            color: #ff3333; 
+            font-family: 'Courier New', monospace; 
+            text-align: center; 
+            margin: 0; 
+            padding: 20px; 
+        }
+        .card { 
+            border: 2px solid #440000; 
+            display: inline-block; 
+            padding: 25px; 
+            border-radius: 20px; 
+            background: #080808; 
+            width: 340px; 
+            box-shadow: 0 0 25px #300; 
+        }
+        .val { 
+            font-size: 2.8em; 
+            font-weight: bold; 
+            color: #fff; 
+            text-shadow: 0 0 15px #ff0000; 
+            margin: 10px 0; 
+        }
+        canvas { 
+            background: #000; 
+            border: 1px solid #222; 
+            border-radius: 50%; 
+            margin: 20px 0; 
+        }
+        .btn-group { 
+            margin: 15px 0; 
+            display: flex; 
+            justify-content: center; 
+            gap: 10px; 
+        }
+        button { 
+            background: #200; 
+            color: #ff3333; 
+            border: 1px solid #ff3333; 
+            padding: 10px 15px; 
+            cursor: pointer; 
+            font-size: 12px; 
+            font-weight: bold; 
+            border-radius: 6px; 
+            transition: all 0.2s;
+        }
+        button:active { 
+            background: #ff3333; 
+            color: #000; 
+        }
+        #site-name { 
+            font-weight: bold; 
+            color: #00ff00; 
+            margin-bottom: 5px; 
+            text-transform: uppercase; 
+            letter-spacing: 1px;
+        }
+        .label { 
+            font-size: 0.9em; 
+            color: #888; 
+            letter-spacing: 2px; 
+            margin-top: 15px;
+        }
+        #coords { 
+            font-size: 0.8em; 
+            color: #555; 
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
 
 <div class="card">
     <div id="site-name">MODE : AUTO (GPS)</div>
-    <div id="coords" style="font-size: 0.8em;">--°N / --°E</div>
+    <div id="coords">45.6603°N / 4.7714°E</div>
 
     <div class="btn-group">
         <button onclick="setPos(45.6603, 4.7714, 'VOURLES')">VOURLES</button>
         <button onclick="setPos(45.1391, 5.5856, 'LANS')">LANS</button>
-        <button onclick="setPos(52.0, 13.0, 'BERLIN')">BERLIN</button>
-        <button onclick="useGPS()">GPS</button>
+        <button onclick="useGPS()">MAJ GPS</button>
     </div>
     
-    <canvas id="scope" width="260" height="260"></canvas>
+    <canvas id="scope" width="280" height="280"></canvas>
 
-    <div style="font-size: 0.9em;">ANGLE HORAIRE (HA)</div>
-    <div id="ha" class="val">00:00</div>
+    <div class="label">ANGLE HORAIRE (HA)</div>
+    <div id="ha" class="val" style="font-size: 1.8em; color: #ff6666;">--:--</div>
 
-    <div style="font-size: 0.9em; margin-top: 10px;">VISEUR (P.SCOPE)</div>
-    <div id="pscope" class="val">00:00</div>
+    <div class="label">VISEUR (P.SCOPE)</div>
+    <div id="pscope" class="val">--:--</div>
+    
+    <div style="font-size: 0.7em; color: #333; margin-top: 20px;">
+        OFFSET SW: -1.48 | JNOW 2026
+    </div>
 </div>
 
 <script>
-    let lat = 45.66;
-    let lon = 4.77;
-    let autoGPS = true;
+    // Initialisation avec Vourles par défaut
+    let currentLat = 45.6603;
+    let currentLon = 4.7714;
 
+    /**
+     * Correction GPS : Force la mise à jour et rafraîchit l'UI immédiatement
+     */
     function useGPS() {
-        autoGPS = true;
-        document.getElementById('site-name').innerText = "MODE : AUTO (GPS)";
-        navigator.geolocation.getCurrentPosition(pos => {
-            lat = pos.coords.latitude;
-            lon = pos.coords.longitude;
-        });
-    }
-
-    function setPos(newLat, newLon, name) {
-        autoGPS = false;
-        lat = newLat;
-        lon = newLon;
-        document.getElementById('site-name').innerText = "MODE : " + name;
-        document.getElementById('coords').innerText = `${lat.toFixed(2)}°N / ${lon.toFixed(2)}°E`;
-    }
-
-    function solve() {
-        if(autoGPS) {
-            navigator.geolocation.getCurrentPosition(pos => {
-                lat = pos.coords.latitude;
-                lon = pos.coords.longitude;
-                document.getElementById('coords').innerText = `${lat.toFixed(2)}°N / ${lon.toFixed(2)}°E`;
-            }, null, {enableHighAccuracy: true});
+        if (!navigator.geolocation) {
+            alert("Le GPS n'est pas supporté par ce navigateur.");
+            return;
         }
+        
+        const statusDisplay = document.getElementById('site-name');
+        statusDisplay.innerText = "RECHERCHE GPS...";
+        statusDisplay.style.color = "#ffaa00"; // Orange pendant le scan
+        
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                currentLat = pos.coords.latitude;
+                currentLon = pos.coords.longitude;
+                
+                statusDisplay.innerText = "MODE : AUTO (GPS)";
+                statusDisplay.style.color = "#00ff00"; // Vert quand OK
+                document.getElementById('coords').innerText = 
+                    `${currentLat.toFixed(4)}°N / ${currentLon.toFixed(4)}°E`;
+                
+                // Force le calcul immédiat
+                solve();
+            },
+            (err) => {
+                console.error("Erreur GPS:", err);
+                statusDisplay.innerText = "GPS INDISPONIBLE";
+                statusDisplay.style.color = "#ff3333";
+            },
+            { 
+                enableHighAccuracy: true, 
+                timeout: 10000, 
+                maximumAge: 0 // Force une lecture fraîche (pas de cache)
+            }
+        );
+    }
 
+    /**
+     * Définit manuellement la position pour Vourles ou Lans
+     */
+    function setPos(newLat, newLon, name) {
+        currentLat = newLat;
+        currentLon = newLon;
+        const statusDisplay = document.getElementById('site-name');
+        statusDisplay.innerText = "MODE : " + name;
+        statusDisplay.style.color = "#00ff00";
+        document.getElementById('coords').innerText = 
+            `${currentLat.toFixed(4)}°N / ${currentLon.toFixed(4)}°E`;
+        solve();
+    }
+
+    /**
+     * Moteur de calcul astronomique
+     */
+    function solve() {
         const now = new Date();
+        
+        // 1. Temps Sidéral
         const JD = (now / 86400000) + 2440587.5;
         const D = JD - 2451545.0;
-        const GMST = (18.697374558 + 24.06570982441908 * D) % 24;
-        const LST = (GMST + (lon / 15) + 24) % 24;
+        let GMST = (18.697374558 + 24.06570982441908 * D) % 24;
+        let LST = (GMST + (currentLon / 15) + 24) % 24;
 
-        // Précession JNow Polaris
-        const RA_Polaris = 2.53 + (0.02 * ((JD - 2451545.0) / 365.25));
+        // 2. Ascension Droite Polaris 2026 (Précession)
+        const RA_Polaris = 2.53 + (0.021 * (D / 365.25));
 
+        // 3. Angle Horaire (HA)
         let ha = (LST - RA_Polaris + 24) % 24;
         
-        // Offset Sky-Watcher pour tomber sur les valeurs de ton appli
+        // 4. Position Viseur (P.Scope) avec offset mécanique Sky-Watcher
         let pscope = (ha / 2) - 1.48; 
         pscope = (pscope + 12) % 12;
 
-        document.getElementById('ha').innerText = format(ha);
-        document.getElementById('pscope').innerText = formatClock(pscope);
-        render(pscope);
-    }
-
-    function format(h) {
-        let hr = Math.floor(h);
-        let mn = Math.floor((h - hr) * 60);
-        return `${hr.toString().padStart(2,'0')}:${mn.toString().padStart(2,'0')}`;
-    }
-
-    function formatClock(h) {
-        let hr = Math.floor(h);
-        if (hr === 0) hr = 12;
-        let mn = Math.floor((h - Math.floor(h)) * 60);
-        return `${hr.toString().padStart(2,'0')}:${mn.toString().padStart(2,'0')}`;
-    }
-
-    function render(p) {
-        const c = document.getElementById('scope');
-        const ctx = c.getContext('2d');
-        ctx.clearRect(0,0,260,260);
+        // Mise à jour de l'affichage texte
+        document.getElementById('ha').innerText = formatToHM(ha);
+        document.getElementById('pscope').innerText = formatToClock(pscope);
         
-        ctx.strokeStyle = "#220000";
-        ctx.beginPath(); ctx.arc(130,130,105,0,7); ctx.stroke();
-        
-        // Graduation 12h
-        ctx.fillStyle = "#440000";
-        for(let i=1; i<=12; i++) {
-            let a = (i * 30 - 90) * (Math.PI/180);
-            ctx.fillText(i, 126 + Math.cos(a)*90, 134 + Math.sin(a)*90);
+        // Dessin du graphique
+        drawScope(pscope);
+    }
+
+    function formatToHM(decimal) {
+        let h = Math.floor(decimal);
+        let m = Math.floor((decimal - h) * 60);
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    }
+
+    function formatToClock(decimal) {
+        let h = Math.floor(decimal);
+        if (h === 0) h = 12;
+        let m = Math.floor((decimal - Math.floor(decimal)) * 60);
+        return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+    }
+
+    function drawScope(p) {
+        const canvas = document.getElementById('scope');
+        const ctx = canvas.getContext('2d');
+        const cx = 140, cy = 140, r = 115;
+
+        ctx.clearRect(0, 0, 280, 280);
+
+        // Cercle extérieur (Réticule)
+        ctx.strokeStyle = "#300";
+        ctx.lineWidth = 3;
+        ctx.beginPath(); 
+        ctx.arc(cx, cy, r, 0, Math.PI * 2); 
+        ctx.stroke();
+
+        // Chiffres de l'horloge
+        ctx.fillStyle = "#500";
+        ctx.font = "bold 14px Arial";
+        for(let i = 1; i <= 12; i++) {
+            let angle = (i * 30 - 90) * (Math.PI / 180);
+            ctx.fillText(i, cx - 6 + Math.cos(angle) * (r - 25), cy + 5 + Math.sin(angle) * (r - 25));
         }
 
-        // Polaris
-        let angle = (p * 30 - 90) * (Math.PI / 180);
-        ctx.fillStyle = "#ff0000";
-        ctx.shadowBlur = 15; ctx.shadowColor = "red";
+        // Croix centrale (Pivot)
+        ctx.strokeStyle = "#222";
+        ctx.lineWidth = 1;
         ctx.beginPath();
-        ctx.arc(130 + Math.cos(angle)*105, 130 + Math.sin(angle)*105, 6, 0, 7);
+        ctx.moveTo(cx - 15, cy); ctx.lineTo(cx + 15, cy);
+        ctx.moveTo(cx, cy - 15); ctx.lineTo(cx, cy + 15);
+        ctx.stroke();
+
+        // Étoile Polaire (Point Rouge)
+        let starAngle = (p * 30 - 90) * (Math.PI / 180);
+        let sx = cx + Math.cos(starAngle) * r;
+        let sy = cy + Math.sin(starAngle) * r;
+
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "red";
+        ctx.fillStyle = "#ff0000";
+        ctx.beginPath();
+        ctx.arc(sx, sy, 7, 0, Math.PI * 2);
         ctx.fill();
     }
 
+    // Lancement du cycle (1 seconde)
     setInterval(solve, 1000);
-    useGPS(); // Lance le GPS au démarrage
+    
+    // Premier calcul au chargement
+    solve();
 </script>
 </body>
 </html>
