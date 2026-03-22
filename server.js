@@ -4,73 +4,51 @@ import fetch from "node-fetch";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ------------------------------
-// Clé N2YO
-// ------------------------------
+// ------------------------------------------------------------
+// CONFIGURATION ET CLÉS
+// ------------------------------------------------------------
+// Ta clé API N2YO doit être définie dans tes variables d'environnement
 const N2YO_KEY = process.env.N2YO_KEY;
 
-// ------------------------------
-// Dossier des fichiers HTML
-// ------------------------------
+// Dossier public pour tes fichiers HTML/JS (ton interface client)
 app.use(express.static("public"));
 
-// ------------------------------
-// API ISS — Vourles
-// ------------------------------
-app.get("/api/iss/vourles", async (req, res) => {
-  const lat = 45.6601;
-  const lng = 4.7713;
-  const alt = 200;
-  const days = 10;
-  const minVisibility = 1;
-
-  const url = `https://api.n2yo.com/rest/v1/satellite/visualpasses/25544/${lat}/${lng}/${alt}/${days}/${minVisibility}/&apiKey=${N2YO_KEY}`;
-
-  try {
-    const r = await fetch(url);
-    const data = await r.json();
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: "Erreur N2YO Vourles" });
+// Coordonnées précises des sites d'observation
+const LOCATIONS = {
+  vourles: { 
+    lat: 45.6601, 
+    lon: 4.7713, 
+    alt: 200,
+    name: "Vourles" 
+  },
+  lans: { 
+    lat: 45.1391, 
+    lon: 5.5856, 
+    alt: 1000,
+    name: "Lans-en-Vercors" 
   }
-});
-
-// ------------------------------
-// API ISS — Lans-en-Vercors
-// ------------------------------
-app.get("/api/iss/lans", async (req, res) => {
-  const lat = 45.1391;
-  const lng = 5.5856;
-  const alt = 1000;
-  const days = 10;
-  const minVisibility = 1;
-
-  const url = `https://api.n2yo.com/rest/v1/satellite/visualpasses/25544/${lat}/${lng}/${alt}/${days}/${minVisibility}/&apiKey=${N2YO_KEY}`;
-
-  try {
-    const r = await fetch(url);
-    const data = await r.json();
-    res.json(data);
-  } catch (e) {
-    res.status(500).json({ error: "Erreur N2YO Lans" });
-  }
-});
-
-// ------------------------------
-// API Polaris locale (sans API externe)
-// ------------------------------
-
-// Coordonnées des sites
-const POLARIS_LOCATIONS = {
-  vourles: { lat: 45.6601, lon: 4.7713 },
-  lans: { lat: 45.1391, lon: 5.5856 }
 };
 
-// RA/Dec de Polaris (2025)
-const POLARIS_RA = 2.530301028;   // en heures
-const POLARIS_DEC = 89.264109444; // en degrés
+// ------------------------------------------------------------
+// MOTEUR DE CALCUL ASTRONOMIQUE (POLARIS)
+// ------------------------------------------------------------
 
-// Temps sidéral local
+/**
+ * Calcule l'Ascension Droite (RA) de la Polaire pour l'instant T.
+ * Prend en compte la précession annuelle pour garantir la précision en 2026.
+ */
+function getPolarisRA() {
+  const now = new Date();
+  const JD = (now / 86400000) + 2440587.5;
+  const D = JD - 2451545.0;
+  const yearsSince2000 = D / 365.25;
+  // Dérive séculaire de la Polaire (~0.021h par an)
+  return 2.53 + (0.021 * yearsSince2000);
+}
+
+/**
+ * Calcule le Temps Sidéral Local (LST) pour une longitude donnée.
+ */
 function localSiderealTime(longitude) {
   const now = new Date();
   const JD = (now / 86400000) + 2440587.5;
@@ -80,64 +58,120 @@ function localSiderealTime(longitude) {
   GMST = GMST % 24;
 
   let LST = GMST + longitude / 15;
-  if (LST < 0) LST += 24;
-  if (LST >= 24) LST -= 24;
-
-  return LST;
+  return (LST + 24) % 24;
 }
 
-// Calcul Polaris dans le viseur EQ6
-function computePolaris(lat, lon) {
+/**
+ * Calcule les coordonnées de mise en station (HA et P-Scope).
+ * Intègre l'offset mécanique de -1.48 pour les réticules Sky-Watcher récents.
+ */
+function computePolarisData(lat, lon) {
   const lst = localSiderealTime(lon);
+  const ra = getPolarisRA();
 
-  // Angle horaire de Polaris
-  let hourAngle = lst - POLARIS_RA;
-  if (hourAngle < 0) hourAngle += 24;
+  // Angle horaire (HA) - Position réelle dans le ciel
+  let hourAngle = (lst - ra + 24) % 24;
 
-  // Rotation du réticule EQ6 (simple : 15° par heure)
-  const reticleAngle = (hourAngle * 15) % 360;
+  // Position dans le viseur (P-Scope)
+  // Division par 2 pour cadran 12h ET application de l'offset de calibration
+  let scopePos = (hourAngle / 2) - 1.48;
+  scopePos = (scopePos + 12) % 12;
 
-  // Position brute sur le cercle (x,y)
-  const angleRad = (hourAngle / 12) * Math.PI * 2;
-  const x = Math.sin(angleRad);
-  const y = Math.cos(angleRad);
-
-  // Position Polaris dans le viseur (en heures)
-  const scopePos = hourAngle % 12;
+  // Calcul des coordonnées cartésiennes pour un affichage graphique (Canvas)
+  // Le -90 degrés sert à placer le "midi" (0h/12h) en haut du cercle
+  const angleRad = (scopePos * 30 - 90) * (Math.PI / 180);
+  const x = Math.cos(angleRad);
+  const y = Math.sin(angleRad);
 
   return {
-    lst,
-    hour_angle: hourAngle,
-    reticle_angle: reticleAngle,
-    x,
-    y,
-    scope_position: scopePos
+    lst: lst.toFixed(4),
+    hour_angle: hourAngle.toFixed(4),
+    scope_position: scopePos.toFixed(4),
+    x: x.toFixed(4),
+    y: y.toFixed(4)
   };
 }
 
-// Route API Polaris
-app.get("/api/polaris/:site", (req, res) => {
-  const site = req.params.site;
+// ------------------------------------------------------------
+// ROUTES API - POLARIS
+// ------------------------------------------------------------
 
-  if (!POLARIS_LOCATIONS[site]) {
-    return res.status(400).json({ error: "Site inconnu" });
+/**
+ * Route pour obtenir la position de la Polaire pour un site donné.
+ * Exemple: /api/polaris/vourles
+ */
+app.get("/api/polaris/:site", (req, res) => {
+  const siteKey = req.params.site.toLowerCase();
+  const site = LOCATIONS[siteKey];
+
+  if (!site) {
+    return res.status(400).json({ error: "Site non répertorié. Utilisez 'vourles' ou 'lans'." });
   }
 
-  const { lat, lon } = POLARIS_LOCATIONS[site];
-  const data = computePolaris(lat, lon);
+  const polarisData = computePolarisData(site.lat, site.lon);
 
   res.json({
-    site,
-    latitude: lat,
-    longitude: lon,
-    ...data,
+    status: "success",
+    site: site.name,
+    latitude: site.lat,
+    longitude: site.lon,
+    ...polarisData,
     timestamp: new Date().toISOString()
   });
 });
 
-// ------------------------------
-// Démarrage serveur
-// ------------------------------
+// ------------------------------------------------------------
+// ROUTES API - TRANSITS ISS (N2YO)
+// ------------------------------------------------------------
+
+/**
+ * Route pour obtenir les passages visibles de l'ISS (NORAD ID: 25544).
+ * Exemple: /api/iss/lans
+ */
+app.get("/api/iss/:site", async (req, res) => {
+  const siteKey = req.params.site.toLowerCase();
+  const site = LOCATIONS[siteKey];
+
+  if (!site) {
+    return res.status(400).json({ error: "Site inconnu pour le calcul ISS" });
+  }
+
+  // Paramètres N2YO : 
+  // 25544 (ISS) / lat / lon / alt / 10 jours / 1 seconde de visibilité min.
+  const days = 10;
+  const minVisibility = 1;
+  const satelliteID = 25544;
+
+  const url = `https://api.n2yo.com/rest/v1/satellite/visualpasses/${satelliteID}/${site.lat}/${site.lon}/${site.alt}/${days}/${minVisibility}/&apiKey=${N2YO_KEY}`;
+
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Réponse réseau N2YO non valide");
+    
+    const data = await response.json();
+    
+    res.json({
+      site: site.name,
+      request_timestamp: new Date().toISOString(),
+      ...data
+    });
+  } catch (error) {
+    console.error(`Erreur lors de la récupération ISS pour ${siteKey}:`, error);
+    res.status(500).json({ 
+      error: "Erreur de communication avec le service N2YO",
+      details: error.message 
+    });
+  }
+});
+
+// ------------------------------------------------------------
+// INITIALISATION DU SERVEUR
+// ------------------------------------------------------------
 app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
+  console.log("--------------------------------------------------");
+  console.log(`ASTRO SERVER INITIALISÉ SUR LE PORT : ${PORT}`);
+  console.log(`Lien Polaris Vourles : http://localhost:${PORT}/api/polaris/vourles`);
+  console.log(`Lien Polaris Lans    : http://localhost:${PORT}/api/polaris/lans`);
+  console.log(`Lien ISS Vourles     : http://localhost:${PORT}/api/iss/vourles`);
+  console.log("--------------------------------------------------");
 });
