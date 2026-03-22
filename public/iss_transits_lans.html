@@ -1,0 +1,116 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Passages ISS visibles — Lans-en-Vercors</title>
+  <style>
+    body {
+      margin: 0;
+      background: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      padding: 10px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 5px;
+    }
+    p {
+      text-align: center;
+      margin-top: 0;
+      color: #aaa;
+      font-size: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    th, td {
+      border: 1px solid #444;
+      padding: 8px;
+      text-align: center;
+      font-size: 14px;
+    }
+    th {
+      background: #111;
+    }
+    .sun {
+      color: #ffdd55;
+      font-size: 18px;
+    }
+    .moon {
+      color: #88aaff;
+      font-size: 18px;
+    }
+    .status {
+      text-align: center;
+      margin-top: 20px;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Prochains passages visibles de l'ISS</h2>
+<p>Localisation : Lans-en-Vercors, France</p>
+
+<div id="status" class="status">Chargement des données…</div>
+
+<table id="passes" style="display:none;">
+  <tr>
+    <th>Type</th>
+    <th>Date</th>
+    <th>Heure</th>
+    <th>Durée</th>
+    <th>Élévation max</th>
+  </tr>
+</table>
+
+<script>
+  function formatDateTime(ts) {
+    const d = new Date(ts * 1000);
+    const date = d.toLocaleDateString("fr-FR");
+    const time = d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+    return { date, time };
+  }
+
+  fetch("/api/iss/lans")
+    .then(r => r.json())
+    .then(json => {
+      const statusDiv = document.getElementById("status");
+      const table = document.getElementById("passes");
+
+      if (!json.passes || json.passes.length === 0) {
+        statusDiv.textContent = "Aucun passage visible de l'ISS dans les prochains jours.";
+        return;
+      }
+
+      statusDiv.style.display = "none";
+      table.style.display = "table";
+
+      json.passes.slice(0, 3).forEach(p => {
+        const { date, time } = formatDateTime(p.startUTC);
+        const duration = `${p.duration} s`;
+        const maxEl = `${p.maxEl}°`;
+        const sunlit = p.sunlit;
+
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td>${sunlit ? "<span class='sun'>🌞 Soleil</span>" : "<span class='moon'>🌙 Nuit</span>"}</td>
+          <td>${date}</td>
+          <td>${time}</td>
+          <td>${duration}</td>
+          <td>${maxEl}</td>
+        `;
+        table.appendChild(tr);
+      });
+    })
+    .catch(err => {
+      document.getElementById("status").textContent = "Erreur de chargement des passages ISS.";
+    });
+</script>
+
+</body>
+</html>
