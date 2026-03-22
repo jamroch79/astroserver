@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Alignement polaire EQ6 – Lans-en-Vercors</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #111;
+    color: #eee;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+  }
+  #scope {
+    width: 300px;
+    height: 300px;
+    border: 2px solid #888;
+    border-radius: 50%;
+    margin: 20px auto;
+    position: relative;
+  }
+  #polaris {
+    width: 12px;
+    height: 12px;
+    background: #00aaff;
+    border-radius: 50%;
+    position: absolute;
+    transform: translate(-50%, -50%);
+  }
+</style>
+</head>
+<body>
+
+<h2>Alignement polaire – EQ6 Pro (Lans-en-Vercors)</h2>
+<p id="info">Chargement…</p>
+
+<div id="scope">
+  <div id="polaris"></div>
+</div>
+
+<script>
+async function loadPolaris() {
+  const r = await fetch("/api/polaris/lans");
+  const data = await r.json();
+
+  document.getElementById("info").innerHTML =
+    `LST : ${data.lst}<br>
+     Angle horaire : ${data.hour_angle.toFixed(2)} h<br>
+     Rotation réticule : ${data.reticle_angle.toFixed(1)}°`;
+
+  const x = data.x;
+  const y = data.y;
+
+  const scope = document.getElementById("scope");
+  const polaris = document.getElementById("polaris");
+
+  const radius = scope.clientWidth / 2;
+
+  polaris.style.left = (radius + x * radius) + "px";
+  polaris.style.top  = (radius - y * radius) + "px";
+}
+
+loadPolaris();
+setInterval(loadPolaris, 60000);
+</script>
+
+</body>
+</html>
+
