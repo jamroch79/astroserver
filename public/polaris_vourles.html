@@ -1,108 +1,132 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
-<title>Alignement polaire EQ6 – Vourles</title>
-<style>
-  body {
-    font-family: Arial, sans-serif;
-    background: #111;
-    color: #eee;
-    text-align: center;
-    margin: 0;
-    padding: 20px;
-  }
-  #scope {
-    width: 300px;
-    height: 300px;
-    border: 2px solid #888;
-    border-radius: 50%;
-    margin: 20px auto;
-    position: relative;
-  }
-  #polaris {
-    width: 14px;
-    height: 14px;
-    background: #00aaff;
-    border-radius: 50%;
-    position: absolute;
-    transform: translate(-50%, -50%);
-  }
-  .hour {
-    position: absolute;
-    color: #aaa;
-    font-size: 14px;
-  }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Polaris Master Control</title>
+    <style>
+        body { background: #000; color: #ff3333; font-family: 'Courier New', monospace; text-align: center; padding: 10px; }
+        .card { border: 2px solid #440000; display: inline-block; padding: 15px; border-radius: 12px; background: #0a0a0a; width: 320px; }
+        .val { font-size: 2.2em; font-weight: bold; color: #fff; text-shadow: 0 0 10px #ff0000; }
+        canvas { background: #000; border: 1px solid #222; border-radius: 50%; margin: 15px 0; }
+        .btn-group { margin: 10px 0; display: flex; justify-content: space-around; }
+        button { background: #330000; color: #ff3333; border: 1px solid #ff3333; padding: 5px 10px; cursor: pointer; font-size: 10px; }
+        button:hover { background: #ff3333; color: #000; }
+        #site-name { font-weight: bold; color: #00ff00; margin-bottom: 5px; }
+    </style>
 </head>
 <body>
 
-<h2>Alignement polaire – EQ6 Pro (Vourles)</h2>
-<p id="info">Chargement…</p>
+<div class="card">
+    <div id="site-name">MODE : AUTO (GPS)</div>
+    <div id="coords" style="font-size: 0.8em;">--°N / --°E</div>
 
-<div id="scope">
+    <div class="btn-group">
+        <button onclick="setPos(45.6603, 4.7714, 'VOURLES')">VOURLES</button>
+        <button onclick="setPos(45.1391, 5.5856, 'LANS')">LANS</button>
+        <button onclick="setPos(52.0, 13.0, 'BERLIN')">BERLIN</button>
+        <button onclick="useGPS()">GPS</button>
+    </div>
+    
+    <canvas id="scope" width="260" height="260"></canvas>
 
-  <!-- Les 12 heures -->
-  <div class="hour" style="top:-12px; left:50%; transform:translateX(-50%);">0</div>
-  <div class="hour" style="top:25px; left:85%; transform:translateX(-50%);">1</div>
-  <div class="hour" style="top:75px; left:97%; transform:translateX(-50%);">2</div>
-  <div class="hour" style="top:50%; right:-20px; transform:translateY(-50%);">3</div>
-  <div class="hour" style="bottom:75px; left:97%; transform:translateX(-50%);">4</div>
-  <div class="hour" style="bottom:25px; left:85%; transform:translateX(-50%);">5</div>
-  <div class="hour" style="bottom:-12px; left:50%; transform:translateX(-50%);">6</div>
-  <div class="hour" style="bottom:25px; left:15%; transform:translateX(-50%);">7</div>
-  <div class="hour" style="bottom:75px; left:3%; transform:translateX(-50%);">8</div>
-  <div class="hour" style="top:50%; left:-20px; transform:translateY(-50%);">9</div>
-  <div class="hour" style="top:75px; left:3%; transform:translateX(-50%);">10</div>
-  <div class="hour" style="top:25px; left:15%; transform:translateX(-50%);">11</div>
+    <div style="font-size: 0.9em;">ANGLE HORAIRE (HA)</div>
+    <div id="ha" class="val">00:00</div>
 
-  <div id="polaris"></div>
+    <div style="font-size: 0.9em; margin-top: 10px;">VISEUR (P.SCOPE)</div>
+    <div id="pscope" class="val">00:00</div>
 </div>
 
-<p id="scopepos" style="margin-top:10px; font-size:18px; color:#0af;">
-  Calcul en cours…
-</p>
-
 <script>
-async function loadPolaris() {
-  const r = await fetch("/api/polaris/vourles");
-  const data = await r.json();
+    let lat = 45.66;
+    let lon = 4.77;
+    let autoGPS = true;
 
-  document.getElementById("info").innerHTML =
-    `LST : ${data.lst}<br>
-     Angle horaire : ${data.hour_angle.toFixed(2)} h<br>
-     Rotation réticule : ${data.reticle_angle.toFixed(1)}°`;
+    function useGPS() {
+        autoGPS = true;
+        document.getElementById('site-name').innerText = "MODE : AUTO (GPS)";
+        navigator.geolocation.getCurrentPosition(pos => {
+            lat = pos.coords.latitude;
+            lon = pos.coords.longitude;
+        });
+    }
 
-  // Polaris brute
-  const x = data.x;
-  const y = data.y;
+    function setPos(newLat, newLon, name) {
+        autoGPS = false;
+        lat = newLat;
+        lon = newLon;
+        document.getElementById('site-name').innerText = "MODE : " + name;
+        document.getElementById('coords').innerText = `${lat.toFixed(2)}°N / ${lon.toFixed(2)}°E`;
+    }
 
-  // Rotation du réticule EQ6
-  const angle = data.reticle_angle * Math.PI / 180;
-  const xr = x * Math.cos(angle) - y * Math.sin(angle);
-  const yr = x * Math.sin(angle) + y * Math.cos(angle);
+    function solve() {
+        if(autoGPS) {
+            navigator.geolocation.getCurrentPosition(pos => {
+                lat = pos.coords.latitude;
+                lon = pos.coords.longitude;
+                document.getElementById('coords').innerText = `${lat.toFixed(2)}°N / ${lon.toFixed(2)}°E`;
+            }, null, {enableHighAccuracy: true});
+        }
 
-  // Polaris doit être sur le cercle
-  const scope = document.getElementById("scope");
-  const radius = scope.clientWidth / 2;
-  const polaris = document.getElementById("polaris");
+        const now = new Date();
+        const JD = (now / 86400000) + 2440587.5;
+        const D = JD - 2451545.0;
+        const GMST = (18.697374558 + 24.06570982441908 * D) % 24;
+        const LST = (GMST + (lon / 15) + 24) % 24;
 
-  const norm = Math.sqrt(xr * xr + yr * yr);
-  const nx = xr / norm;
-  const ny = yr / norm;
+        // Précession JNow Polaris
+        const RA_Polaris = 2.53 + (0.02 * ((JD - 2451545.0) / 365.25));
 
-  polaris.style.left = (radius + nx * radius) + "px";
-  polaris.style.top  = (radius - ny * radius) + "px";
+        let ha = (LST - RA_Polaris + 24) % 24;
+        
+        // Offset Sky-Watcher pour tomber sur les valeurs de ton appli
+        let pscope = (ha / 2) - 1.48; 
+        pscope = (pscope + 12) % 12;
 
-  // Position Polaris dans le viseur (en heures)
-  const scopePos = (data.hour_angle + data.reticle_angle / 15) % 12;
-  document.getElementById("scopepos").innerHTML =
-    "Polaris in the scope : " + scopePos.toFixed(2) + " h";
-}
+        document.getElementById('ha').innerText = format(ha);
+        document.getElementById('pscope').innerText = formatClock(pscope);
+        render(pscope);
+    }
 
-loadPolaris();
-setInterval(loadPolaris, 60000);
+    function format(h) {
+        let hr = Math.floor(h);
+        let mn = Math.floor((h - hr) * 60);
+        return `${hr.toString().padStart(2,'0')}:${mn.toString().padStart(2,'0')}`;
+    }
+
+    function formatClock(h) {
+        let hr = Math.floor(h);
+        if (hr === 0) hr = 12;
+        let mn = Math.floor((h - Math.floor(h)) * 60);
+        return `${hr.toString().padStart(2,'0')}:${mn.toString().padStart(2,'0')}`;
+    }
+
+    function render(p) {
+        const c = document.getElementById('scope');
+        const ctx = c.getContext('2d');
+        ctx.clearRect(0,0,260,260);
+        
+        ctx.strokeStyle = "#220000";
+        ctx.beginPath(); ctx.arc(130,130,105,0,7); ctx.stroke();
+        
+        // Graduation 12h
+        ctx.fillStyle = "#440000";
+        for(let i=1; i<=12; i++) {
+            let a = (i * 30 - 90) * (Math.PI/180);
+            ctx.fillText(i, 126 + Math.cos(a)*90, 134 + Math.sin(a)*90);
+        }
+
+        // Polaris
+        let angle = (p * 30 - 90) * (Math.PI / 180);
+        ctx.fillStyle = "#ff0000";
+        ctx.shadowBlur = 15; ctx.shadowColor = "red";
+        ctx.beginPath();
+        ctx.arc(130 + Math.cos(angle)*105, 130 + Math.sin(angle)*105, 6, 0, 7);
+        ctx.fill();
+    }
+
+    setInterval(solve, 1000);
+    useGPS(); // Lance le GPS au démarrage
 </script>
-
 </body>
 </html>
