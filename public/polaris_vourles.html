@@ -39,15 +39,15 @@
             margin: 15px 0; 
             display: flex; 
             justify-content: center; 
-            gap: 10px; 
+            gap: 20px; 
         }
         button { 
             background: #200; 
             color: #ff3333; 
             border: 1px solid #ff3333; 
-            padding: 10px 15px; 
+            padding: 12px 25px; 
             cursor: pointer; 
-            font-size: 12px; 
+            font-size: 14px; 
             font-weight: bold; 
             border-radius: 6px; 
             transition: all 0.2s;
@@ -79,13 +79,12 @@
 <body>
 
 <div class="card">
-    <div id="site-name">MODE : AUTO (GPS)</div>
-    <div id="coords">45.6603°N / 4.7714°E</div>
+    <div id="site-name">SITE : VOURLES</div>
+    <div id="coords">45.6601°N / 4.7713°E</div>
 
     <div class="btn-group">
-        <button onclick="setPos(45.6603, 4.7714, 'VOURLES')">VOURLES</button>
+        <button onclick="setPos(45.6601, 4.7713, 'VOURLES')">VOURLES</button>
         <button onclick="setPos(45.1391, 5.5856, 'LANS')">LANS</button>
-        <button onclick="useGPS()">MAJ GPS</button>
     </div>
     
     <canvas id="scope" width="280" height="280"></canvas>
@@ -95,98 +94,52 @@
 
     <div class="label">VISEUR (P.SCOPE)</div>
     <div id="pscope" class="val">--:--</div>
-    
-    <div style="font-size: 0.7em; color: #333; margin-top: 20px;">
-        OFFSET SW: -1.48 | JNOW 2026
-    </div>
 </div>
 
 <script>
-    // Initialisation avec Vourles par défaut
-    let currentLat = 45.6603;
-    let currentLon = 4.7714;
+    // Coordonnées de départ (Vourles)
+    let currentLat = 45.6601;
+    let currentLon = 4.7713;
 
     /**
-     * Correction GPS : Force la mise à jour et rafraîchit l'UI immédiatement
-     */
-    function useGPS() {
-        if (!navigator.geolocation) {
-            alert("Le GPS n'est pas supporté par ce navigateur.");
-            return;
-        }
-        
-        const statusDisplay = document.getElementById('site-name');
-        statusDisplay.innerText = "RECHERCHE GPS...";
-        statusDisplay.style.color = "#ffaa00"; // Orange pendant le scan
-        
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                currentLat = pos.coords.latitude;
-                currentLon = pos.coords.longitude;
-                
-                statusDisplay.innerText = "MODE : AUTO (GPS)";
-                statusDisplay.style.color = "#00ff00"; // Vert quand OK
-                document.getElementById('coords').innerText = 
-                    `${currentLat.toFixed(4)}°N / ${currentLon.toFixed(4)}°E`;
-                
-                // Force le calcul immédiat
-                solve();
-            },
-            (err) => {
-                console.error("Erreur GPS:", err);
-                statusDisplay.innerText = "GPS INDISPONIBLE";
-                statusDisplay.style.color = "#ff3333";
-            },
-            { 
-                enableHighAccuracy: true, 
-                timeout: 10000, 
-                maximumAge: 0 // Force une lecture fraîche (pas de cache)
-            }
-        );
-    }
-
-    /**
-     * Définit manuellement la position pour Vourles ou Lans
+     * Change de site et met à jour l'affichage
      */
     function setPos(newLat, newLon, name) {
         currentLat = newLat;
         currentLon = newLon;
-        const statusDisplay = document.getElementById('site-name');
-        statusDisplay.innerText = "MODE : " + name;
-        statusDisplay.style.color = "#00ff00";
-        document.getElementById('coords').innerText = 
-            `${currentLat.toFixed(4)}°N / ${currentLon.toFixed(4)}°E`;
-        solve();
+        document.getElementById('site-name').innerText = "SITE : " + name;
+        document.getElementById('coords').innerText = `${currentLat.toFixed(4)}°N / ${currentLon.toFixed(4)}°E`;
+        solve(); // Recalcul immédiat
     }
 
     /**
-     * Moteur de calcul astronomique
+     * Moteur de calcul astronomique complet
      */
     function solve() {
         const now = new Date();
-        
-        // 1. Temps Sidéral
         const JD = (now / 86400000) + 2440587.5;
         const D = JD - 2451545.0;
+
+        // 1. Temps Sidéral Local (LST)
         let GMST = (18.697374558 + 24.06570982441908 * D) % 24;
         let LST = (GMST + (currentLon / 15) + 24) % 24;
 
-        // 2. Ascension Droite Polaris 2026 (Précession)
+        // 2. Ascension Droite de Polaris (Correction JNow 2026)
         const RA_Polaris = 2.53 + (0.021 * (D / 365.25));
 
         // 3. Angle Horaire (HA)
         let ha = (LST - RA_Polaris + 24) % 24;
         
-        // 4. Position Viseur (P.Scope) avec offset mécanique Sky-Watcher
+        // 4. Position Viseur (P.Scope) avec offset mécanique Sky-Watcher (-1.48)
         let pscope = (ha / 2) - 1.48; 
         pscope = (pscope + 12) % 12;
 
-        // Mise à jour de l'affichage texte
+        // Mise à jour des textes
         document.getElementById('ha').innerText = formatToHM(ha);
         document.getElementById('pscope').innerText = formatToClock(pscope);
         
-        // Dessin du graphique
-        drawScope(pscope);
+        // Dessin du réticule
+        draw(pscope);
     }
 
     function formatToHM(decimal) {
@@ -202,53 +155,41 @@
         return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
     }
 
-    function drawScope(p) {
+    function draw(p) {
         const canvas = document.getElementById('scope');
         const ctx = canvas.getContext('2d');
         const cx = 140, cy = 140, r = 115;
-
         ctx.clearRect(0, 0, 280, 280);
 
-        // Cercle extérieur (Réticule)
-        ctx.strokeStyle = "#300";
+        // Cercle du réticule
+        ctx.strokeStyle = "#300"; 
         ctx.lineWidth = 3;
         ctx.beginPath(); 
         ctx.arc(cx, cy, r, 0, Math.PI * 2); 
         ctx.stroke();
 
-        // Chiffres de l'horloge
-        ctx.fillStyle = "#500";
+        // Graduation horaire (1 à 12)
+        ctx.fillStyle = "#500"; 
         ctx.font = "bold 14px Arial";
         for(let i = 1; i <= 12; i++) {
             let angle = (i * 30 - 90) * (Math.PI / 180);
             ctx.fillText(i, cx - 6 + Math.cos(angle) * (r - 25), cy + 5 + Math.sin(angle) * (r - 25));
         }
 
-        // Croix centrale (Pivot)
-        ctx.strokeStyle = "#222";
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(cx - 15, cy); ctx.lineTo(cx + 15, cy);
-        ctx.moveTo(cx, cy - 15); ctx.lineTo(cx, cy + 15);
-        ctx.stroke();
-
-        // Étoile Polaire (Point Rouge)
+        // Dessin de l'étoile Polaire (Point Rouge)
         let starAngle = (p * 30 - 90) * (Math.PI / 180);
-        let sx = cx + Math.cos(starAngle) * r;
-        let sy = cy + Math.sin(starAngle) * r;
-
-        ctx.shadowBlur = 15;
+        ctx.shadowBlur = 15; 
         ctx.shadowColor = "red";
         ctx.fillStyle = "#ff0000";
-        ctx.beginPath();
-        ctx.arc(sx, sy, 7, 0, Math.PI * 2);
+        ctx.beginPath(); 
+        ctx.arc(cx + Math.cos(starAngle) * r, cy + Math.sin(starAngle) * r, 7, 0, Math.PI * 2); 
         ctx.fill();
     }
 
-    // Lancement du cycle (1 seconde)
+    // Intervalle de mise à jour (1 seconde)
     setInterval(solve, 1000);
     
-    // Premier calcul au chargement
+    // Calcul initial au chargement de la page
     solve();
 </script>
 </body>
