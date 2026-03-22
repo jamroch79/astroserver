@@ -96,6 +96,10 @@ function computePolarisData(lat, lon) {
 // ROUTES API - POLARIS
 // ------------------------------------------------------------
 
+/**
+ * Route pour obtenir la position de la Polaire pour un site donné.
+ * Exemple: /api/polaris/vourles
+ */
 app.get("/api/polaris/:site", (req, res) => {
   const siteKey = req.params.site.toLowerCase();
   const site = LOCATIONS[siteKey];
@@ -120,6 +124,10 @@ app.get("/api/polaris/:site", (req, res) => {
 // ROUTES API - TRANSITS ISS (N2YO)
 // ------------------------------------------------------------
 
+/**
+ * Route pour obtenir les passages visibles de l'ISS (NORAD ID: 25544).
+ * Exemple: /api/iss/lans
+ */
 app.get("/api/iss/:site", async (req, res) => {
   const siteKey = req.params.site.toLowerCase();
   const site = LOCATIONS[siteKey];
@@ -128,6 +136,8 @@ app.get("/api/iss/:site", async (req, res) => {
     return res.status(400).json({ error: "Site inconnu pour le calcul ISS" });
   }
 
+  // Paramètres N2YO : 
+  // 25544 (ISS) / lat / lon / alt / 10 jours / 1 seconde de visibilité min.
   const days = 10;
   const minVisibility = 1;
   const satelliteID = 25544;
@@ -137,7 +147,9 @@ app.get("/api/iss/:site", async (req, res) => {
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error("Réponse réseau N2YO non valide");
+    
     const data = await response.json();
+    
     res.json({
       site: site.name,
       request_timestamp: new Date().toISOString(),
