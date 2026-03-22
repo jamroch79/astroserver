@@ -13,7 +13,7 @@ const N2YO_KEY = process.env.N2YO_KEY;
 // Dossier public pour tes fichiers HTML/JS (ton interface client)
 app.use(express.static("public"));
 
-// Coordonnées précises des sites d'observation
+// Coordonnées précises des sites d'observation (Berlin supprimé)
 const LOCATIONS = {
   vourles: { 
     lat: 45.6601, 
