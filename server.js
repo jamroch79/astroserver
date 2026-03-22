@@ -4,16 +4,22 @@ import fetch from "node-fetch";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ------------------------------
 // Clé N2YO
+// ------------------------------
 const N2YO_KEY = process.env.N2YO_KEY;
 
-// Dossier des fichiers HTML (kp, iss_transits_*.html, etc.)
+// ------------------------------
+// Dossier des fichiers HTML
+// ------------------------------
 app.use(express.static("public"));
 
-// Proxy ISS pour Vourles
+// ------------------------------
+// API ISS — Vourles
+// ------------------------------
 app.get("/api/iss/vourles", async (req, res) => {
-  const lat = 45.673;
-  const lng = 4.793;
+  const lat = 45.6601;
+  const lng = 4.7713;
   const alt = 200;
   const days = 10;
   const minVisibility = 1;
@@ -29,10 +35,12 @@ app.get("/api/iss/vourles", async (req, res) => {
   }
 });
 
-// Proxy ISS pour Lans-en-Vercors
+// ------------------------------
+// API ISS — Lans-en-Vercors
+// ------------------------------
 app.get("/api/iss/lans", async (req, res) => {
-  const lat = 45.126;
-  const lng = 5.585;
+  const lat = 45.1391;
+  const lng = 5.5856;
   const alt = 1000;
   const days = 10;
   const minVisibility = 1;
@@ -48,7 +56,55 @@ app.get("/api/iss/lans", async (req, res) => {
   }
 });
 
+// ------------------------------
+// API Polaris — EQ6-Pro
+// ------------------------------
+
+// Coordonnées des sites
+const POLARIS_LOCATIONS = {
+  vourles: { lat: 45.6601, lon: 4.7713 },
+  lans: { lat: 45.1391, lon: 5.5856 }
+};
+
+// Fonction pour interroger l’API PolarScopeAlign
+async function getPolarisData(lat, lon) {
+  const url = `https://polarscopealign.com/api/polaris?lat=${lat}&lon=${lon}`;
+  const r = await fetch(url);
+  return await r.json();
+}
+
+// Route API Polaris
+app.get("/api/polaris/:site", async (req, res) => {
+  const site = req.params.site;
+
+  if (!POLARIS_LOCATIONS[site]) {
+    return res.status(400).json({ error: "Site inconnu" });
+  }
+
+  const { lat, lon } = POLARIS_LOCATIONS[site];
+
+  try {
+    const data = await getPolarisData(lat, lon);
+
+    res.json({
+      site,
+      latitude: lat,
+      longitude: lon,
+      lst: data.lst,
+      hour_angle: data.hour_angle,
+      reticle_angle: data.reticle_angle,
+      x: data.x,
+      y: data.y,
+      timestamp: new Date().toISOString()
+    });
+  } catch (e) {
+    res.status(500).json({ error: "Erreur API Polaris", details: e.message });
+  }
+});
+
+// ------------------------------
+// Démarrage serveur
+// ------------------------------
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
