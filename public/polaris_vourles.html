@@ -131,8 +131,8 @@
         let ha = (LST - RA_Polaris + 24) % 24;
         
         // 4. Position Viseur (P.Scope) avec offset mécanique Sky-Watcher (-1.48)
-        let pscope = (ha / 2) - 1.48; 
-        pscope = (pscope + 12) % 12;
+        let pscope = 18 - (ha / 2);
+        pscope = (pscope % 12 + 12) % 12;
 
         // Mise à jour des textes
         document.getElementById('ha').innerText = formatToHM(ha);
