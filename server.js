@@ -74,7 +74,7 @@ function computePolarisData(lat, lon) {
 
   // Position dans le viseur (P-Scope)
   // Division par 2 pour cadran 12h ET application de l'offset de calibration
-  let scopePos = (hourAngle / 2) - 1.48;
+  let scopePos = 18 - (hourAngle / 2);
   scopePos = (scopePos + 12) % 12;
 
   // Calcul des coordonnées cartésiennes pour un affichage graphique (Canvas)
