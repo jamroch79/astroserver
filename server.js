@@ -1,5 +1,6 @@
 import express from "express";
 import fetch from "node-fetch";
+import { planetposition, sexa, coord, data, julian } from "astronomia";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -7,13 +8,10 @@ const PORT = process.env.PORT || 3000;
 // ------------------------------------------------------------
 // CONFIGURATION ET CLÉS
 // ------------------------------------------------------------
-// Ta clé API N2YO doit être définie dans tes variables d'environnement
 const N2YO_KEY = process.env.N2YO_KEY;
 
-// Dossier public pour tes fichiers HTML/JS (ton interface client)
 app.use(express.static("public"));
 
-// Coordonnées précises des sites d'observation (Berlin supprimé)
 const LOCATIONS = {
   vourles: { 
     lat: 45.6601, 
@@ -33,22 +31,14 @@ const LOCATIONS = {
 // MOTEUR DE CALCUL ASTRONOMIQUE (POLARIS)
 // ------------------------------------------------------------
 
-/**
- * Calcule l'Ascension Droite (RA) de la Polaire pour l'instant T.
- * Prend en compte la précession annuelle pour garantir la précision en 2026.
- */
 function getPolarisRA() {
   const now = new Date();
   const JD = (now / 86400000) + 2440587.5;
   const D = JD - 2451545.0;
   const yearsSince2000 = D / 365.25;
-  // Dérive séculaire de la Polaire (~0.021h par an)
   return 2.53 + (0.021 * yearsSince2000);
 }
 
-/**
- * Calcule le Temps Sidéral Local (LST) pour une longitude donnée.
- */
 function localSiderealTime(longitude) {
   const now = new Date();
   const JD = (now / 86400000) + 2440587.5;
@@ -61,24 +51,15 @@ function localSiderealTime(longitude) {
   return (LST + 24) % 24;
 }
 
-/**
- * Calcule les coordonnées de mise en station (HA et P-Scope).
- * Intègre l'offset mécanique de -1.48 pour les réticules Sky-Watcher récents.
- */
 function computePolarisData(lat, lon) {
   const lst = localSiderealTime(lon);
   const ra = getPolarisRA();
 
-  // Angle horaire (HA) - Position réelle dans le ciel
   let hourAngle = (lst - ra + 24) % 24;
 
-  // Position dans le viseur (P-Scope)
-  // Division par 2 pour cadran 12h ET application de l'offset de calibration
   let scopePos = 18 - (hourAngle / 2);
   scopePos = (scopePos + 12) % 12;
 
-  // Calcul des coordonnées cartésiennes pour un affichage graphique (Canvas)
-  // Le -90 degrés sert à placer le "midi" (0h/12h) en haut du cercle
   const angleRad = (scopePos * 30 - 90) * (Math.PI / 180);
   const x = Math.cos(angleRad);
   const y = Math.sin(angleRad);
@@ -96,10 +77,6 @@ function computePolarisData(lat, lon) {
 // ROUTES API - POLARIS
 // ------------------------------------------------------------
 
-/**
- * Route pour obtenir la position de la Polaire pour un site donné.
- * Exemple: /api/polaris/vourles
- */
 app.get("/api/polaris/:site", (req, res) => {
   const siteKey = req.params.site.toLowerCase();
   const site = LOCATIONS[siteKey];
@@ -124,10 +101,6 @@ app.get("/api/polaris/:site", (req, res) => {
 // ROUTES API - TRANSITS ISS (N2YO)
 // ------------------------------------------------------------
 
-/**
- * Route pour obtenir les passages visibles de l'ISS (NORAD ID: 25544).
- * Exemple: /api/iss/lans
- */
 app.get("/api/iss/:site", async (req, res) => {
   const siteKey = req.params.site.toLowerCase();
   const site = LOCATIONS[siteKey];
@@ -136,8 +109,6 @@ app.get("/api/iss/:site", async (req, res) => {
     return res.status(400).json({ error: "Site inconnu pour le calcul ISS" });
   }
 
-  // Paramètres N2YO : 
-  // 25544 (ISS) / lat / lon / alt / 10 jours / 1 seconde de visibilité min.
   const days = 10;
   const minVisibility = 1;
   const satelliteID = 25544;
@@ -165,8 +136,70 @@ app.get("/api/iss/:site", async (req, res) => {
 });
 
 // ------------------------------------------------------------
+// ROUTE API - POSITION TEMPS RÉEL D’UNE PLANÈTE
+// ------------------------------------------------------------
+
+app.get("/api/planet/position/:planet/:site", (req, res) => {
+  const planetName = req.params.planet.toLowerCase();
+  const siteKey = req.params.site.toLowerCase();
+  const site = LOCATIONS[siteKey];
+
+  if (!site) {
+    return res.status(400).json({ error: "Site inconnu. Utilisez 'vourles' ou 'lans'." });
+  }
+
+  const planets = {
+    mercury: data.mercury,
+    venus: data.venus,
+    mars: data.mars,
+    jupiter: data.jupiter,
+    saturn: data.saturn,
+    uranus: data.uranus,
+    neptune: data.neptune
+  };
+
+  if (!planets[planetName]) {
+    return res.status(400).json({ error: "Planète inconnue." });
+  }
+
+  try {
+    const earth = new planetposition.Planet(data.earth);
+    const target = new planetposition.Planet(planets[planetName]);
+
+    const now = new Date();
+    const jd = julian.DateToJD(now);
+
+    const { ra, dec, range } = planetposition.position(earth, target, jd);
+
+    const observer = new coord.Observer(site.lat, site.lon, 0);
+    const eq = new coord.Equatorial(ra, dec);
+    const hor = coord.eqToHor(eq, observer, jd);
+
+    const altDeg = hor.alt * 180 / Math.PI;
+    const azDeg = hor.az * 180 / Math.PI;
+
+    res.json({
+      status: "success",
+      planet: planetName,
+      site: site.name,
+      altitude_deg: altDeg,
+      azimut_deg: azDeg,
+      ra_hours: ra,
+      dec_deg: dec * 180 / Math.PI,
+      distance_au: range,
+      visible: altDeg > 0,
+      timestamp: now.toISOString()
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: "Erreur de calcul astronomique", details: err.message });
+  }
+});
+
+// ------------------------------------------------------------
 // INITIALISATION DU SERVEUR
 // ------------------------------------------------------------
+
 app.listen(PORT, () => {
   console.log("--------------------------------------------------");
   console.log(`ASTRO SERVER INITIALISÉ SUR LE PORT : ${PORT}`);
