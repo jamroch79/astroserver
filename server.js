@@ -1,6 +1,10 @@
 import express from "express";
 import fetch from "node-fetch";
-import { planetposition, sexa, coord, data, julian } from "astronomia";
+import { planetposition } from "astronomia";
+import * as sexa from "astronomia/lib/sexagesimal.js";
+import * as coord from "astronomia/lib/coord.js";
+import * as julian from "astronomia/lib/julian.js";
+import * as data from "astronomia/data/index.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
