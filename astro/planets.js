@@ -1,10 +1,11 @@
-// astro.js
+// planets.js
 import {
   AstroTime,
   Observer,
   Equator,
   Horizon,
-  Body
+  Body,
+  Illumination
 } from "astronomy-engine";
 
 const PLANET_MAP = {
@@ -15,9 +16,9 @@ const PLANET_MAP = {
   saturn: Body.Saturn
 };
 
-// -----------------------------
-// Conversion RA → h m s
-// -----------------------------
+// ------------------------------------------------------------
+// RA → h m s
+// ------------------------------------------------------------
 function toHMS(hours) {
   const h = Math.floor(hours);
   const mFloat = (hours - h) * 60;
@@ -26,9 +27,9 @@ function toHMS(hours) {
   return `${String(h).padStart(2, '0')}h ${String(m).padStart(2, '0')}m ${s.toFixed(2)}s`;
 }
 
-// -----------------------------
-// Conversion Dec → ° ′ ″
-// -----------------------------
+// ------------------------------------------------------------
+// Dec → ° ′ ″ (avec signe)
+// ------------------------------------------------------------
 function toDMS(deg) {
   const sign = deg >= 0 ? "+" : "-";
   const abs = Math.abs(deg);
@@ -39,6 +40,33 @@ function toDMS(deg) {
   return `${sign}${String(d).padStart(2, '0')}° ${String(m).padStart(2, '0')}′ ${s.toFixed(2)}″`;
 }
 
+// ------------------------------------------------------------
+// Altitude → ° ′ ″ (avec signe)
+// ------------------------------------------------------------
+function toDMS_Altitude(deg) {
+  const sign = deg >= 0 ? "+" : "-";
+  const abs = Math.abs(deg);
+  const d = Math.floor(abs);
+  const mFloat = (abs - d) * 60;
+  const m = Math.floor(mFloat);
+  const s = (mFloat - m) * 60;
+  return `${sign}${String(d).padStart(2, '0')}° ${String(m).padStart(2, '0')}′ ${s.toFixed(2)}″`;
+}
+
+// ------------------------------------------------------------
+// Azimut → ° ′ ″ (0–360°, pas de signe)
+// ------------------------------------------------------------
+function toDMS_Azimuth(deg) {
+  const d = Math.floor(deg);
+  const mFloat = (deg - d) * 60;
+  const m = Math.floor(mFloat);
+  const s = (mFloat - m) * 60;
+  return `${String(d).padStart(3, '0')}° ${String(m).padStart(2, '0')}′ ${s.toFixed(2)}″`;
+}
+
+// ------------------------------------------------------------
+// Fonction principale
+// ------------------------------------------------------------
 export function getPlanet(name, date = new Date(), lat = 45.659, lon = 4.793) {
   const body = PLANET_MAP[name.toLowerCase()];
   if (!body) throw new Error("Planète inconnue");
@@ -48,18 +76,30 @@ export function getPlanet(name, date = new Date(), lat = 45.659, lon = 4.793) {
 
   const eq = Equator(body, time, obs, true, true);
   const hor = Horizon(time, obs, eq.ra, eq.dec, "normal");
+  const illum = Illumination(body, time);
 
   return {
+    // RA
     ra_hours: eq.ra,
     ra_hms: toHMS(eq.ra),
 
+    // Dec
     dec_deg: eq.dec,
     dec_dms: toDMS(eq.dec),
 
+    // Altitude
     alt_deg: hor.altitude,
+    alt_dms: toDMS_Altitude(hor.altitude),
+
+    // Azimut
     az_deg: hor.azimuth,
+    az_dms: toDMS_Azimuth(hor.azimuth),
+
+    // Distances & photométrie
     distance_au: eq.dist,
-    phase_angle_deg: eq.phase,
-    illumination: eq.illum
+    phase_angle_deg: illum.phase_angle,
+    illumination: illum.fraction,
+    magnitude: illum.mag
   };
 }
+
