@@ -197,6 +197,62 @@ app.get("/api/planet/position/:planet/:site", (req, res) => {
 });
 
 // ------------------------------------------------------------
+// PHASE DE VENUS ET MERCURE
+// ------------------------------------------------------------
+
+app.get("/api/planet/phase/:planet/:site", (req, res) => {
+  const planetName = req.params.planet.toLowerCase();
+  const siteKey = req.params.site.toLowerCase();
+  const site = LOCATIONS[siteKey];
+
+  if (!site) {
+    return res.status(400).json({ error: "Site inconnu. Utilisez 'vourles' ou 'lans'." });
+  }
+
+  if (!["venus", "mercury"].includes(planetName)) {
+    return res.status(400).json({ error: "Phase disponible uniquement pour Vénus et Mercure." });
+  }
+
+  try {
+    const earth = new planetposition.Planet(data.earth);
+    const target = new planetposition.Planet(
+      planetName === "venus" ? data.venus : data.mercury
+    );
+
+    const now = new Date();
+    const jd = julian.DateToJD(now);
+
+    // Position géocentrique de la planète
+    const { range: r, lon: lonP, lat: latP } = planetposition.position(earth, target, jd);
+
+    // Position géocentrique du Soleil (vue depuis la Terre)
+    const sun = new planetposition.Planet(data.sun);
+    const { lon: lonS, lat: latS } = planetposition.position(earth, sun, jd);
+
+    // Angle Soleil–planète–Terre
+    const cosTheta =
+      Math.sin(latS) * Math.sin(latP) +
+      Math.cos(latS) * Math.cos(latP) * Math.cos(lonS - lonP);
+
+    const phase = (1 + cosTheta) / 2;
+
+    res.json({
+      status: "success",
+      planet: planetName,
+      site: site.name,
+      phase_fraction: phase,          // 0 → 1
+      phase_percent: (phase * 100),   // 0% → 100%
+      illuminated: phase > 0.5 ? "gibbeuse" : "croissante/décroissante",
+      timestamp: now.toISOString()
+    });
+
+  } catch (err) {
+    res.status(500).json({ error: "Erreur de calcul de phase", details: err.message });
+  }
+});
+
+
+// ------------------------------------------------------------
 // INITIALISATION DU SERVEUR
 // ------------------------------------------------------------
 
