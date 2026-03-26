@@ -8,6 +8,6 @@
   "dependencies": {
     "express": "4.19.0",
     "node-fetch": "3.3.2",
-    "astronomia": "2.4.0"
+    "astronomia": "2.3.0"
   }
 }
