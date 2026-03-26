@@ -1,5 +1,6 @@
 import express from "express";
 import fetch from "node-fetch";
+import { getPlanet } from "./astro/planets.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -7,28 +8,25 @@ const PORT = process.env.PORT || 3000;
 // ------------------------------------------------------------
 // CONFIGURATION ET CLÉS
 // ------------------------------------------------------------
-// Ta clé API N2YO doit être définie dans tes variables d'environnement
 const N2YO_KEY = process.env.N2YO_KEY;
 
-// Dossier public pour tes fichiers HTML/JS (ton interface client)
+// Dossier public
 app.use(express.static("public"));
 
-// Coordonnées précises des sites d'observation (Berlin supprimé)
+// Coordonnées des sites
 const LOCATIONS = {
-  vourles: { 
-    lat: 45.6601, 
-    lon: 4.7713, 
-    alt: 200,
-    name: "Vourles" 
-  },
-  lans: { 
-    lat: 45.1391, 
-    lon: 5.5856, 
-    alt: 1000,
-    name: "Lans-en-Vercors" 
-  }
+  vourles: { lat: 45.6601, lon: 4.7713, alt: 200, name: "Vourles" },
+  lans:    { lat: 45.1391, lon: 5.5856, alt: 1000, name: "Lans-en-Vercors" }
 };
 
+// ------------------------------------------------------------
+// ROUTE PLANÈTES
+// ------------------------------------------------------------
+app.get("/api/planet/:name", (req, res) => {
+  const name = req.params.name.toLowerCase();
+  const data = getPlanet(name, new Date(), 45.66, 4.77);
+  res.json(data);
+});
 // ------------------------------------------------------------
 // MOTEUR DE CALCUL ASTRONOMIQUE (POLARIS)
 // ------------------------------------------------------------
