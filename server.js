@@ -23,9 +23,21 @@ const LOCATIONS = {
 // ROUTE PLANÈTES
 // ------------------------------------------------------------
 app.get("/api/planet/:name", (req, res) => {
-  const name = req.params.name.toLowerCase();
-  const data = getPlanet(name, new Date(), 45.66, 4.77);
-  res.json(data);
+  try {
+    const name = req.params.name;
+    const loc = LOCATIONS.vourles; // ou req.query.site si tu veux choisir
+
+    const data = getPlanet(
+      name,
+      new Date(),          // date actuelle
+      loc.lat,
+      loc.lon
+    );
+
+    res.json(data);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
 });
 // ------------------------------------------------------------
 // MOTEUR DE CALCUL ASTRONOMIQUE (POLARIS)
