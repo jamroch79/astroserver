@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Carte du ciel – Planètes</title>
+<style>
+  body { background: #000; color: #fff; text-align: center; }
+  canvas { background: #111; border-radius: 50%; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<h2>Carte du ciel – Planètes</h2>
+<canvas id="sky" width="600" height="600"></canvas>
+
+<script>
+const PLANETS = [
+  "mercury",
+  "venus",
+  "mars",
+  "jupiter",
+  "saturn",
+  "uranus",
+  "neptune",
+  "pluto"
+];
+
+const COLORS = {
+  mercury: "#bbbbbb",
+  venus: "#ffd27f",
+  mars: "#ff5533",
+  jupiter: "#ffddaa",
+  saturn: "#e6c97a",
+  uranus: "#66ccff",
+  neptune: "#3366ff",
+  pluto: "#cccccc"
+};
+
+async function drawSky() {
+  const ctx = document.getElementById("sky").getContext("2d");
+
+  ctx.clearRect(0, 0, 600, 600);
+
+  // cercle horizon
+  ctx.strokeStyle = "#555";
+  ctx.beginPath();
+  ctx.arc(300, 300, 280, 0, 2*Math.PI);
+  ctx.stroke();
+
+  for (const planet of PLANETS) {
+    const res = await fetch(`/api/planet/${planet}`);
+    const p = await res.json();
+
+    const x = 300 + p.proj_x * 280;
+    const y = 300 - p.proj_y * 280;
+
+    ctx.beginPath();
+    ctx.arc(x, y, 8, 0, 2*Math.PI);
+    ctx.fillStyle = COLORS[planet];
+    ctx.fill();
+
+    ctx.fillStyle = "#fff";
+    ctx.fillText(planet.toUpperCase(), x + 12, y);
+  }
+}
+
+drawSky();
+setInterval(drawSky, 60000); // mise à jour toutes les 60 sec
+</script>
+
+</body>
+</html>
