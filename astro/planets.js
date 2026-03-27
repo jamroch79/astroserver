@@ -1,4 +1,4 @@
-// planets.js
+/ planets.js
 import {
   AstroTime,
   Observer,
@@ -19,6 +19,7 @@ const PLANET_MAP = {
   pluto: Body.Pluto
 };
 
+
 // ------------------------------------------------------------
 // RA → h m s
 // ------------------------------------------------------------
@@ -31,7 +32,7 @@ function toHMS(hours) {
 }
 
 // ------------------------------------------------------------
-// Dec → ° ′ ″
+// Dec → ° ′ ″ (avec signe)
 // ------------------------------------------------------------
 function toDMS(deg) {
   const sign = deg >= 0 ? "+" : "-";
@@ -44,7 +45,7 @@ function toDMS(deg) {
 }
 
 // ------------------------------------------------------------
-// Altitude → ° ′ ″
+// Altitude → ° ′ ″ (avec signe)
 // ------------------------------------------------------------
 function toDMS_Altitude(deg) {
   const sign = deg >= 0 ? "+" : "-";
@@ -57,7 +58,7 @@ function toDMS_Altitude(deg) {
 }
 
 // ------------------------------------------------------------
-// Azimut → ° ′ ″
+// Azimut → ° ′ ″ (0–360°, pas de signe)
 // ------------------------------------------------------------
 function toDMS_Azimuth(deg) {
   const d = Math.floor(deg);
@@ -68,7 +69,7 @@ function toDMS_Azimuth(deg) {
 }
 
 // ------------------------------------------------------------
-// Description lisible de la phase
+// Description lisible de la phase (croissant, gibbeuse, etc.)
 // ------------------------------------------------------------
 function getPhaseDescription(f) {
   if (f < 0.1) return "Très fin croissant";
@@ -86,49 +87,48 @@ export function getPlanet(name, date = new Date(), lat = 45.659, lon = 4.793) {
   const body = PLANET_MAP[name.toLowerCase()];
   if (!body) throw new Error("Planète inconnue");
 
-  // ------------------------------------------------------------
-  // Correction CRITIQUE : heure locale France (Europe/Paris)
-  // ------------------------------------------------------------
-  const local = new Date(
-    date.toLocaleString("en-US", { timeZone: "Europe/Paris" })
-  );
-
-  const time = new AstroTime(local);
+  const time = new AstroTime(date);
   const obs = new Observer(lat, lon, 200);
 
   const eq = Equator(body, time, obs, true, true);
   const hor = Horizon(time, obs, eq.ra, eq.dec, "normal");
   const illum = Illumination(body, time);
 
-  // Projection azimutale
-  const alt = hor.altitude;
-  const az = hor.azimuth;
+// Projection azimutale simple (planisphère)
+const alt = hor.altitude;
+const az = hor.azimuth;
 
-  const r = (90 - alt) / 90;
-  const theta = az * Math.PI / 180;
+const r = (90 - alt) / 90;          // 0 = zénith, 1 = horizon
+const theta = az * Math.PI / 180;
 
-  const x = r * Math.cos(theta);
-  const y = r * Math.sin(theta);
+const x = r * Math.cos(theta);
+const y = r * Math.sin(theta);
 
   return {
+    // RA
     ra_hours: eq.ra,
     ra_hms: toHMS(eq.ra),
 
+    // Dec
     dec_deg: eq.dec,
     dec_dms: toDMS(eq.dec),
 
+    // Altitude
     alt_deg: hor.altitude,
     alt_dms: toDMS_Altitude(hor.altitude),
 
+    // Azimut
     az_deg: hor.azimuth,
     az_dms: toDMS_Azimuth(hor.azimuth),
 
+    // Photométrie
     distance_au: eq.dist,
     phase_angle_deg: illum.phase_angle,
     illumination: illum.fraction,
     magnitude: illum.mag,
     phase_description: getPhaseDescription(illum.fraction),
 
+    // Projection planisphère
     proj_x: x,
     proj_y: y
   };
