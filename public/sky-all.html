@@ -91,6 +91,29 @@ async function drawSky() {
     ctx.lineTo(x2, y2);
     ctx.stroke();
   }
+// -------------------------------
+// Cercles d'altitude (30° et 60°)
+// -------------------------------
+ctx.strokeStyle = "#333";
+ctx.lineWidth = 1;
+
+// altitude 30°
+let r30 = 280 * (1 - 30/90);  // = 280 * 0.666...
+ctx.beginPath();
+ctx.arc(300, 300, r30, 0, 2*Math.PI);
+ctx.stroke();
+
+// altitude 60°
+let r60 = 280 * (1 - 60/90);  // = 280 * 0.333...
+ctx.beginPath();
+ctx.arc(300, 300, r60, 0, 2*Math.PI);
+ctx.stroke();
+
+// labels altitude
+ctx.fillStyle = "#888";
+ctx.font = "14px sans-serif";
+ctx.fillText("30°", 300 + r30 + 5, 300);
+ctx.fillText("60°", 300 + r60 + 5, 300);
 
   // -------------------------------
   // Planètes
