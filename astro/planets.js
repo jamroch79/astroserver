@@ -93,15 +93,16 @@ export function getPlanet(name, date = new Date(), lat = 45.659, lon = 4.793) {
   const hor = Horizon(time, obs, eq.ra, eq.dec, "normal");
   const illum = Illumination(body, time);
 
-// Projection azimutale simple (planisphère)
-const alt = hor.altitude;
-const az = hor.azimuth;
+  // Projection azimutale simple (planisphère)
+  const alt = hor.altitude;
+  const az = hor.azimuth;
 
-const r = (90 - alt) / 90;          // 0 = zénith, 1 = horizon
-const theta = az * Math.PI / 180;
+  const r = (90 - alt) / 90;          // 0 = zénith, 1 = horizon
+  const theta = az * Math.PI / 180;
 
-const x = r * Math.cos(theta);
-const y = r * Math.sin(theta);
+  // CORRECTION : vraie projection azimutale (x = r*sin, y = r*cos)
+  const x = r * Math.sin(theta);
+  const y = r * Math.cos(theta);
 
   return {
     // RA
