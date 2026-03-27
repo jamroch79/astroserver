@@ -47,6 +47,54 @@ async function drawSky() {
   ctx.arc(300, 300, 280, 0, 2*Math.PI);
   ctx.stroke();
 
+  // -------------------------------
+  // Directions cardinales
+  // -------------------------------
+  const directions = [
+    { label: "N",  angle: 0 },
+    { label: "NE", angle: 45 },
+    { label: "E",  angle: 90 },
+    { label: "SE", angle: 135 },
+    { label: "S",  angle: 180 },
+    { label: "SW", angle: 225 },
+    { label: "W",  angle: 270 },
+    { label: "NW", angle: 315 }
+  ];
+
+  ctx.fillStyle = "#fff";
+  ctx.font = "16px sans-serif";
+
+  for (const d of directions) {
+    const rad = d.angle * Math.PI / 180;
+    const x = 300 + Math.sin(rad) * 260;
+    const y = 300 - Math.cos(rad) * 260;
+    ctx.fillText(d.label, x - 10, y + 5);
+  }
+
+  // -------------------------------
+  // Graduations d’azimut (tous les 30°)
+  // -------------------------------
+  ctx.strokeStyle = "#444";
+  ctx.lineWidth = 1;
+
+  for (let angle = 0; angle < 360; angle += 30) {
+    const rad = angle * Math.PI / 180;
+
+    const x1 = 300 + Math.sin(rad) * 280;
+    const y1 = 300 - Math.cos(rad) * 280;
+
+    const x2 = 300 + Math.sin(rad) * 260;
+    const y2 = 300 - Math.cos(rad) * 260;
+
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  // -------------------------------
+  // Planètes
+  // -------------------------------
   for (const planet of PLANETS) {
     const res = await fetch(`/api/planet/${planet}`);
     const p = await res.json();
@@ -54,32 +102,32 @@ async function drawSky() {
     const x = 300 + p.proj_x * 280;
     const y = 300 - p.proj_y * 280;
 
-// Taille apparente du disque
-const R = 12;
+    // Taille apparente du disque
+    const R = 12;
 
-// Disque plein (fond)
-ctx.beginPath();
-ctx.arc(x, y, R, 0, 2*Math.PI);
-ctx.fillStyle = COLORS[planet];
-ctx.fill();
+    // Disque plein (fond)
+    ctx.beginPath();
+    ctx.arc(x, y, R, 0, 2*Math.PI);
+    ctx.fillStyle = COLORS[planet];
+    ctx.fill();
 
-// Croissant (partie non éclairée)
-const frac = p.illumination; // 0 à 1
+    // Croissant (partie non éclairée)
+    const frac = p.illumination; // 0 à 1
 
-ctx.beginPath();
-ctx.arc(x, y, R, Math.PI/2, -Math.PI/2, true);
-ctx.arc(x + (1 - frac) * R, y, R, -Math.PI/2, Math.PI/2, false);
-ctx.fillStyle = "black";
-ctx.fill();
+    ctx.beginPath();
+    ctx.arc(x, y, R, Math.PI/2, -Math.PI/2, true);
+    ctx.arc(x + (1 - frac) * R, y, R, -Math.PI/2, Math.PI/2, false);
+    ctx.fillStyle = "black";
+    ctx.fill();
 
-
-ctx.fillStyle = "#fff";
-ctx.fillText(planet.toUpperCase(), x + 12, y);
+    // Nom de la planète
+    ctx.fillStyle = "#fff";
+    ctx.fillText(planet.toUpperCase(), x + 12, y);
   }
 }
 
 drawSky();
-setInterval(drawSky, 60000); // mise à jour toutes les 60 sec
+setInterval(drawSky, 60000);
 </script>
 
 </body>
