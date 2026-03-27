@@ -69,6 +69,18 @@ function toDMS_Azimuth(deg) {
 }
 
 // ------------------------------------------------------------
+// Description lisible de la phase (croissant, gibbeuse, etc.)
+// ------------------------------------------------------------
+function getPhaseDescription(f) {
+  if (f < 0.1) return "Très fin croissant";
+  if (f < 0.25) return "Croissant";
+  if (f < 0.45) return "Premier quartier";
+  if (f < 0.55) return "Demi-phase";
+  if (f < 0.75) return "Gibbeuse";
+  return "Pleine phase";
+}
+
+// ------------------------------------------------------------
 // Fonction principale
 // ------------------------------------------------------------
 export function getPlanet(name, date = new Date(), lat = 45.659, lon = 4.793) {
@@ -114,6 +126,7 @@ const y = r * Math.sin(theta);
     phase_angle_deg: illum.phase_angle,
     illumination: illum.fraction,
     magnitude: illum.mag,
+    phase_description: getPhaseDescription(illum.fraction),
 
     // Projection planisphère
     proj_x: x,
