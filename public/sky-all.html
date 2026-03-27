@@ -134,14 +134,17 @@ ctx.fillText("60°", 300 + r60 + 5, 300);
     ctx.fillStyle = COLORS[planet];
     ctx.fill();
 
-    // Croissant (partie non éclairée)
-    const frac = p.illumination; // 0 à 1
+    // Croissant uniquement pour Mercure et Vénus
+    if (planet === "mercury" || planet === "venus") {
+    const frac = p.illumination;
 
     ctx.beginPath();
     ctx.arc(x, y, R, Math.PI/2, -Math.PI/2, true);
     ctx.arc(x + (1 - frac) * R, y, R, -Math.PI/2, Math.PI/2, false);
     ctx.fillStyle = "black";
     ctx.fill();
+}
+
 
     // Nom de la planète
     ctx.fillStyle = "#fff";
