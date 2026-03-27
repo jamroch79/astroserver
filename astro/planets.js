@@ -13,8 +13,12 @@ const PLANET_MAP = {
   venus: Body.Venus,
   mars: Body.Mars,
   jupiter: Body.Jupiter,
-  saturn: Body.Saturn
+  saturn: Body.Saturn,
+  uranus: Body.Uranus,
+  neptune: Body.Neptune,
+  pluto: Body.Pluto
 };
+
 
 // ------------------------------------------------------------
 // RA → h m s
@@ -78,6 +82,16 @@ export function getPlanet(name, date = new Date(), lat = 45.659, lon = 4.793) {
   const hor = Horizon(time, obs, eq.ra, eq.dec, "normal");
   const illum = Illumination(body, time);
 
+// Projection azimutale simple (planisphère)
+const alt = hor.altitude;
+const az = hor.azimuth;
+
+const r = (90 - alt) / 90;          // 0 = zénith, 1 = horizon
+const theta = az * Math.PI / 180;
+
+const x = r * Math.cos(theta);
+const y = r * Math.sin(theta);
+
   return {
     // RA
     ra_hours: eq.ra,
@@ -95,11 +109,14 @@ export function getPlanet(name, date = new Date(), lat = 45.659, lon = 4.793) {
     az_deg: hor.azimuth,
     az_dms: toDMS_Azimuth(hor.azimuth),
 
-    // Distances & photométrie
+    // Photométrie
     distance_au: eq.dist,
     phase_angle_deg: illum.phase_angle,
     illumination: illum.fraction,
-    magnitude: illum.mag
+    magnitude: illum.mag,
+
+    // Projection planisphère
+    proj_x: x,
+    proj_y: y
   };
 }
-
