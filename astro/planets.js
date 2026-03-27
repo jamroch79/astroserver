@@ -1,4 +1,3 @@
-/ planets.js
 import {
   AstroTime,
   Observer,
