@@ -54,13 +54,27 @@ async function drawSky() {
     const x = 300 + p.proj_x * 280;
     const y = 300 - p.proj_y * 280;
 
-    ctx.beginPath();
-    ctx.arc(x, y, 8, 0, 2*Math.PI);
-    ctx.fillStyle = COLORS[planet];
-    ctx.fill();
+// Taille apparente du disque
+const R = 12;
 
-    ctx.fillStyle = "#fff";
-    ctx.fillText(planet.toUpperCase(), x + 12, y);
+// Disque plein (fond)
+ctx.beginPath();
+ctx.arc(x, y, R, 0, 2*Math.PI);
+ctx.fillStyle = COLORS[planet];
+ctx.fill();
+
+// Croissant (partie non éclairée)
+const frac = p.illumination; // 0 à 1
+
+ctx.beginPath();
+ctx.arc(x, y, R, Math.PI/2, -Math.PI/2, true);
+ctx.arc(x + (1 - frac) * R, y, R, -Math.PI/2, Math.PI/2, false);
+ctx.fillStyle = "black";
+ctx.fill();
+
+
+ctx.fillStyle = "#fff";
+ctx.fillText(planet.toUpperCase(), x + 12, y);
   }
 }
 
