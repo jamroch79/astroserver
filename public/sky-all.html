@@ -4,14 +4,41 @@
 <meta charset="UTF-8">
 <title>Carte du ciel – Planètes</title>
 <style>
-  body { background: #000; color: #fff; text-align: center; }
-  canvas { background: #111; border-radius: 50%; margin-top: 20px; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+    color: #fff;
+    text-align: center;
+  }
+
+  h2 {
+    margin: 8px 0;
+    font-size: 18px;
+  }
+
+  .wrapper {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto 8px auto;
+  }
+
+  canvas {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    background: #111;
+    border-radius: 50%;
+    display: block;
+  }
 </style>
 </head>
 <body>
 
 <h2>Carte du ciel – Planètes</h2>
-<canvas id="sky" width="600" height="600"></canvas>
+<div class="wrapper">
+  <canvas id="sky"></canvas>
+</div>
 
 <script>
 const PLANETS = [
@@ -37,37 +64,126 @@ const COLORS = {
 };
 
 async function drawSky() {
-  const ctx = document.getElementById("sky").getContext("2d");
+  const canvas = document.getElementById("sky");
 
-  ctx.clearRect(0, 0, 600, 600);
+  // on force une surface de dessin carrée en pixels
+  const size = Math.min(canvas.clientWidth, canvas.clientWidth);
+  canvas.width = size;
+  canvas.height = size;
+
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+  const CX = W / 2;
+  const CY = H / 2;
+  const R = Math.min(W, H) / 2 - 20; // marge
+
+  ctx.clearRect(0, 0, W, H);
 
   // cercle horizon
   ctx.strokeStyle = "#555";
   ctx.beginPath();
-  ctx.arc(300, 300, 280, 0, 2*Math.PI);
+  ctx.arc(CX, CY, R, 0, 2*Math.PI);
   ctx.stroke();
 
+  // Directions cardinales
+  const directions = [
+    { label: "N",  angle: 0 },
+    { label: "NE", angle: 45 },
+    { label: "E",  angle: 90 },
+    { label: "SE", angle: 135 },
+    { label: "S",  angle: 180 },
+    { label: "SW", angle: 225 },
+    { label: "W",  angle: 270 },
+    { label: "NW", angle: 315 }
+  ];
+
+  ctx.fillStyle = "#fff";
+  ctx.font = `${Math.round(W * 0.026)}px sans-serif`;
+
+  for (const d of directions) {
+    const rad = d.angle * Math.PI / 180;
+    const x = CX + Math.sin(rad) * (R - 20);
+    const y = CY - Math.cos(rad) * (R - 20);
+    ctx.fillText(d.label, x - 10, y + 5);
+  }
+
+  // Graduations d’azimut (tous les 30°)
+  ctx.strokeStyle = "#444";
+  ctx.lineWidth = 1;
+
+  for (let angle = 0; angle < 360; angle += 30) {
+    const rad = angle * Math.PI / 180;
+
+    const x1 = CX + Math.sin(rad) * R;
+    const y1 = CY - Math.cos(rad) * R;
+
+    const x2 = CX + Math.sin(rad) * (R - 20);
+    const y2 = CY - Math.cos(rad) * (R - 20);
+
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  // Cercles d'altitude (30° et 60°)
+  ctx.strokeStyle = "#333";
+  ctx.lineWidth = 1;
+
+  let r30 = R * (1 - 30/90);
+  ctx.beginPath();
+  ctx.arc(CX, CY, r30, 0, 2*Math.PI);
+  ctx.stroke();
+
+  let r60 = R * (1 - 60/90);
+  ctx.beginPath();
+  ctx.arc(CX, CY, r60, 0, 2*Math.PI);
+  ctx.stroke();
+
+  ctx.fillStyle = "#888";
+  ctx.font = `${Math.round(W * 0.022)}px sans-serif`;
+  ctx.fillText("30°", CX + r30 + 5, CY);
+  ctx.fillText("60°", CX + r60 + 5, CY);
+
+  // Planètes
   for (const planet of PLANETS) {
     const res = await fetch(`/api/planet/${planet}`);
     const p = await res.json();
 
-    const x = 300 + p.proj_x * 280;
-    const y = 300 - p.proj_y * 280;
+    const px = CX + p.proj_x * R;
+    const py = CY - p.proj_y * R;
 
+    const PR = Math.max(6, R * 0.04); // taille relative
+
+    // Disque plein
     ctx.beginPath();
-    ctx.arc(x, y, 8, 0, 2*Math.PI);
+    ctx.arc(px, py, PR, 0, 2*Math.PI);
     ctx.fillStyle = COLORS[planet];
     ctx.fill();
 
+    // Croissant uniquement pour Mercure et Vénus
+    if (planet === "mercury" || planet === "venus") {
+      const frac = p.illumination;
+
+      ctx.beginPath();
+      ctx.arc(px, py, PR, Math.PI/2, -Math.PI/2, true);
+      ctx.arc(px + (1 - frac) * PR, py, PR, -Math.PI/2, Math.PI/2, false);
+      ctx.fillStyle = "black";
+      ctx.fill();
+    }
+
+    // Nom de la planète
     ctx.fillStyle = "#fff";
-    ctx.fillText(planet.toUpperCase(), x + 12, y);
+    ctx.font = `${Math.round(W * 0.022)}px sans-serif`;
+    ctx.fillText(planet.toUpperCase(), px + PR + 4, py);
   }
 }
 
 drawSky();
-setInterval(drawSky, 60000); // mise à jour toutes les 60 sec
+window.addEventListener("resize", drawSky);
+setInterval(drawSky, 60000);
 </script>
 
 </body>
 </html>
-
