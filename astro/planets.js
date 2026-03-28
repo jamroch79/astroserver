@@ -7,6 +7,8 @@ import {
   Illumination
 } from "astronomy-engine";
 
+import * as Astronomy from "astronomy-engine";   // 🔥 AJOUT CHIRURGICAL
+
 const PLANET_MAP = {
   mercury: Body.Mercury,
   venus: Body.Venus,
@@ -31,7 +33,7 @@ function toHMS(hours) {
 }
 
 // ------------------------------------------------------------
-// Dec → ° ′ ″ (avec signe)
+// Dec → ° ′ ″
 // ------------------------------------------------------------
 function toDMS(deg) {
   const sign = deg >= 0 ? "+" : "-";
@@ -44,7 +46,7 @@ function toDMS(deg) {
 }
 
 // ------------------------------------------------------------
-// Altitude → ° ′ ″ (avec signe)
+// Altitude
 // ------------------------------------------------------------
 function toDMS_Altitude(deg) {
   const sign = deg >= 0 ? "+" : "-";
@@ -57,7 +59,7 @@ function toDMS_Altitude(deg) {
 }
 
 // ------------------------------------------------------------
-// Azimut → ° ′ ″ (0–360°, pas de signe)
+// Azimut
 // ------------------------------------------------------------
 function toDMS_Azimuth(deg) {
   const d = Math.floor(deg);
@@ -68,7 +70,7 @@ function toDMS_Azimuth(deg) {
 }
 
 // ------------------------------------------------------------
-// Description lisible de la phase (croissant, gibbeuse, etc.)
+// Description de phase
 // ------------------------------------------------------------
 function getPhaseDescription(f) {
   if (f < 0.1) return "Très fin croissant";
@@ -80,7 +82,7 @@ function getPhaseDescription(f) {
 }
 
 // ------------------------------------------------------------
-// Fonction principale
+// Fonction principale géocentrique
 // ------------------------------------------------------------
 export function getPlanet(name, date = new Date(), lat = 45.659, lon = 4.793) {
   const body = PLANET_MAP[name.toLowerCase()];
@@ -93,43 +95,77 @@ export function getPlanet(name, date = new Date(), lat = 45.659, lon = 4.793) {
   const hor = Horizon(time, obs, eq.ra, eq.dec, "normal");
   const illum = Illumination(body, time);
 
-  // Projection azimutale simple (planisphère)
   const alt = hor.altitude;
   const az = hor.azimuth;
 
-  const r = (90 - alt) / 90;          // 0 = zénith, 1 = horizon
+  const r = (90 - alt) / 90;
   const theta = az * Math.PI / 180;
 
-  // CORRECTION : vraie projection azimutale (x = r*sin, y = r*cos)
   const x = r * Math.sin(theta);
   const y = r * Math.cos(theta);
 
   return {
-    // RA
     ra_hours: eq.ra,
     ra_hms: toHMS(eq.ra),
 
-    // Dec
     dec_deg: eq.dec,
     dec_dms: toDMS(eq.dec),
 
-    // Altitude
     alt_deg: hor.altitude,
     alt_dms: toDMS_Altitude(hor.altitude),
 
-    // Azimut
     az_deg: hor.azimuth,
     az_dms: toDMS_Azimuth(hor.azimuth),
 
-    // Photométrie
     distance_au: eq.dist,
     phase_angle_deg: illum.phase_angle,
     illumination: illum.fraction,
     magnitude: illum.mag,
     phase_description: getPhaseDescription(illum.fraction),
 
-    // Projection planisphère
     proj_x: x,
     proj_y: y
+  };
+}
+
+
+// ============================================================================
+// 🔥 SYSTÈME HÉLIOCENTRIQUE — AJOUT CHIRURGICAL
+// ============================================================================
+
+// Coordonnées XY héliocentriques en UA
+function computeHeliocentricXY(body, time) {
+  const vec = Astronomy.HelioVector(body, time);
+  return {
+    x: vec.x,
+    y: vec.y
+  };
+}
+
+// Fonction principale héliocentrique
+export function getHeliocentricPositions(date = new Date()) {
+  const time = new AstroTime(date);
+
+  const bodies = [
+    Body.Mercury,
+    Body.Venus,
+    Body.Earth,
+    Body.Mars,
+    Body.Jupiter,
+    Body.Saturn,
+    Body.Uranus,
+    Body.Neptune
+  ];
+
+  const result = {};
+
+  for (const body of bodies) {
+    const pos = computeHeliocentricXY(body, time);
+    result[Body[body].toLowerCase()] = pos;
+  }
+
+  return {
+    sun: { x: 0, y: 0 },
+    planets: result
   };
 }
