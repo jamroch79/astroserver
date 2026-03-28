@@ -32,7 +32,7 @@
     display: block;
   }
 
-  .slider-container {
+  .controls {
     margin: 10px auto 20px auto;
     width: 90%;
     max-width: 600px;
@@ -40,11 +40,7 @@
     font-size: 14px;
   }
 
-  input[type=range] {
-    width: 100%;
-  }
-
-  button {
+  select, button {
     background: #222;
     color: #fff;
     border: 1px solid #555;
@@ -53,8 +49,12 @@
     cursor: pointer;
   }
 
-  button:hover {
+  button:hover, select:hover {
     background: #333;
+  }
+
+  input[type=range] {
+    width: 100%;
   }
 </style>
 </head>
@@ -62,12 +62,28 @@
 
 <h2>Système héliocentrique</h2>
 
-<div class="slider-container">
-  Temps simulé : <span id="offsetLabel">0h</span><br>
-  <input id="timeSlider" type="range" min="-12" max="12" step="1" value="0">
+<!-- ========================= -->
+<!--   CONTROLES TEMPORELS     -->
+<!-- ========================= -->
+<div class="controls">
+  Unité temporelle :
+  <select id="timeUnit">
+    <option value="hours">Heures</option>
+    <option value="days" selected>Jours</option>
+    <option value="weeks">Semaines</option>
+    <option value="months">Mois</option>
+    <option value="years">Années</option>
+  </select>
+  <br><br>
+
+  Temps simulé : <span id="offsetLabel">0 jours</span><br>
+  <input id="timeSlider" type="range" min="-365" max="365" step="1" value="0">
 </div>
 
-<div class="slider-container">
+<!-- ========================= -->
+<!--   CONTROLES DE VUE        -->
+<!-- ========================= -->
+<div class="controls">
   <button id="modeFull">Vue complète</button>
   <button id="modeInner">Vue interne (0–2 UA)</button>
 </div>
@@ -77,8 +93,9 @@
 </div>
 
 <script>
-let timeOffsetHours = 0;
 let mode = "full"; // "full" ou "inner"
+let timeOffset = 0;
+let timeUnit = "days";
 
 const COLORS = {
   mercury: "#bbbbbb",
@@ -93,12 +110,65 @@ const COLORS = {
 
 const slider = document.getElementById("timeSlider");
 const label = document.getElementById("offsetLabel");
+const unitSelect = document.getElementById("timeUnit");
 
-slider.oninput = () => {
-  timeOffsetHours = Number(slider.value);
-  label.textContent = (timeOffsetHours >= 0 ? "+" : "") + timeOffsetHours + "h";
+unitSelect.onchange = () => {
+  timeUnit = unitSelect.value;
+
+  // Ajuste la plage du slider selon l’unité
+  switch (timeUnit) {
+    case "hours":
+      slider.min = -48;
+      slider.max = 48;
+      slider.step = 1;
+      break;
+
+    case "days":
+      slider.min = -365;
+      slider.max = 365;
+      slider.step = 1;
+      break;
+
+    case "weeks":
+      slider.min = -104;
+      slider.max = 104;
+      slider.step = 1;
+      break;
+
+    case "months":
+      slider.min = -60;
+      slider.max = 60;
+      slider.step = 1;
+      break;
+
+    case "years":
+      slider.min = -20;
+      slider.max = 20;
+      slider.step = 1;
+      break;
+  }
+
+  updateLabel();
   drawHeliocentric();
 };
+
+slider.oninput = () => {
+  timeOffset = Number(slider.value);
+  updateLabel();
+  drawHeliocentric();
+};
+
+function updateLabel() {
+  const sign = timeOffset >= 0 ? "+" : "";
+  const unitNames = {
+    hours: "h",
+    days: " jours",
+    weeks: " semaines",
+    months: " mois",
+    years: " ans"
+  };
+  label.textContent = sign + timeOffset + unitNames[timeUnit];
+}
 
 document.getElementById("modeFull").onclick = () => {
   mode = "full";
@@ -109,6 +179,31 @@ document.getElementById("modeInner").onclick = () => {
   mode = "inner";
   drawHeliocentric();
 };
+
+function computeDate() {
+  const now = Date.now();
+
+  switch (timeUnit) {
+    case "hours":
+      return new Date(now + timeOffset * 3600 * 1000);
+
+    case "days":
+      return new Date(now + timeOffset * 24 * 3600 * 1000);
+
+    case "weeks":
+      return new Date(now + timeOffset * 7 * 24 * 3600 * 1000);
+
+    case "months":
+      const d1 = new Date();
+      d1.setMonth(d1.getMonth() + timeOffset);
+      return d1;
+
+    case "years":
+      const d2 = new Date();
+      d2.setFullYear(d2.getFullYear() + timeOffset);
+      return d2;
+  }
+}
 
 async function drawHeliocentric() {
   const canvas = document.getElementById("heliocentric");
@@ -125,8 +220,8 @@ async function drawHeliocentric() {
 
   ctx.clearRect(0, 0, W, H);
 
-  // Récupération des données
-  const res = await fetch(`/api/heliocentric?offset=${timeOffsetHours}`);
+  const date = computeDate();
+  const res = await fetch(`/api/heliocentric?offset=0&date=${date.toISOString()}`);
   const data = await res.json();
 
   const planets = data.planets;
@@ -135,18 +230,15 @@ async function drawHeliocentric() {
   let maxR = 0;
 
   if (mode === "full") {
-    // Vue complète : Neptune fixe l’échelle
     for (const name in planets) {
       const p = planets[name];
       const r = Math.sqrt(p.x*p.x + p.y*p.y);
       if (r > maxR) maxR = r;
     }
   } else {
-    // Vue interne : fenêtre 0–2 UA
     maxR = 2;
   }
 
-  // Echelle : UA → pixels
   const R = (W/2 - 20) / maxR;
 
   // Soleil
@@ -163,7 +255,6 @@ async function drawHeliocentric() {
     const p = planets[name];
     const r = Math.sqrt(p.x*p.x + p.y*p.y) * R;
 
-    // En mode interne, on n'affiche que les orbites < 2 UA
     if (mode === "inner" && r > 2 * R) continue;
 
     ctx.beginPath();
@@ -179,7 +270,6 @@ async function drawHeliocentric() {
     const p = planets[name];
     const r_ua = Math.sqrt(p.x*p.x + p.y*p.y);
 
-    // En mode interne, on ignore les géantes
     if (mode === "inner" && r_ua > 2) continue;
 
     const x = CX + p.x * R;
