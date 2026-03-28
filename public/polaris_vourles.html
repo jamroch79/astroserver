@@ -13,34 +13,47 @@
             margin: 0; 
             padding: 20px; 
         }
+
+        /* CARD RESPONSIVE */
         .card { 
             border: 2px solid #440000; 
-            display: inline-block; 
+            display: block;
             padding: 25px; 
             border-radius: 20px; 
             background: #080808; 
-            width: 340px; 
+            width: 100%;
+            max-width: 360px;
+            margin: 0 auto;
             box-shadow: 0 0 25px #300; 
         }
+
         .val { 
-            font-size: 2.8em; 
+            font-size: 2.4em; 
             font-weight: bold; 
             color: #fff; 
             text-shadow: 0 0 15px #ff0000; 
             margin: 10px 0; 
         }
+
+        /* CANVAS RESPONSIVE */
         canvas { 
+            width: 100%;
+            height: auto;
+            aspect-ratio: 1 / 1;
             background: #000; 
             border: 1px solid #222; 
             border-radius: 50%; 
             margin: 20px 0; 
+            display: block;
         }
+
         .btn-group { 
             margin: 15px 0; 
             display: flex; 
             justify-content: center; 
             gap: 20px; 
         }
+
         button { 
             background: #200; 
             color: #ff3333; 
@@ -52,10 +65,12 @@
             border-radius: 6px; 
             transition: all 0.2s;
         }
+
         button:active { 
             background: #ff3333; 
             color: #000; 
         }
+
         #site-name { 
             font-weight: bold; 
             color: #00ff00; 
@@ -63,12 +78,14 @@
             text-transform: uppercase; 
             letter-spacing: 1px;
         }
+
         .label { 
             font-size: 0.9em; 
             color: #888; 
             letter-spacing: 2px; 
             margin-top: 15px;
         }
+
         #coords { 
             font-size: 0.8em; 
             color: #555; 
@@ -87,7 +104,7 @@
         <button onclick="setPos(45.1391, 5.5856, 'LANS')">LANS</button>
     </div>
     
-    <canvas id="scope" width="280" height="280"></canvas>
+    <canvas id="scope"></canvas>
 
     <div class="label">ANGLE HORAIRE (HA)</div>
     <div id="ha" class="val" style="font-size: 1.8em; color: #ff6666;">--:--</div>
@@ -97,48 +114,35 @@
 </div>
 
 <script>
-    // Coordonnées de départ (Vourles)
     let currentLat = 45.6601;
     let currentLon = 4.7713;
 
-    /**
-     * Change de site et met à jour l'affichage
-     */
     function setPos(newLat, newLon, name) {
         currentLat = newLat;
         currentLon = newLon;
         document.getElementById('site-name').innerText = "SITE : " + name;
         document.getElementById('coords').innerText = `${currentLat.toFixed(4)}°N / ${currentLon.toFixed(4)}°E`;
-        solve(); // Recalcul immédiat
+        solve();
     }
 
-    /**
-     * Moteur de calcul astronomique complet
-     */
     function solve() {
         const now = new Date();
         const JD = (now / 86400000) + 2440587.5;
         const D = JD - 2451545.0;
 
-        // 1. Temps Sidéral Local (LST)
         let GMST = (18.697374558 + 24.06570982441908 * D) % 24;
         let LST = (GMST + (currentLon / 15) + 24) % 24;
 
-        // 2. Ascension Droite de Polaris (Correction JNow 2026)
         const RA_Polaris = 2.53 + (0.021 * (D / 365.25));
 
-        // 3. Angle Horaire (HA)
         let ha = (LST - RA_Polaris + 24) % 24;
-        
-        // 4. Position Viseur (P.Scope) avec offset mécanique Sky-Watcher (-1.48)
+
         let pscope = 18 - (ha / 2);
         pscope = (pscope % 12 + 12) % 12;
 
-        // Mise à jour des textes
         document.getElementById('ha').innerText = formatToHM(ha);
         document.getElementById('pscope').innerText = formatToClock(pscope);
-        
-        // Dessin du réticule
+
         draw(pscope);
     }
 
@@ -157,39 +161,46 @@
 
     function draw(p) {
         const canvas = document.getElementById('scope');
-        const ctx = canvas.getContext('2d');
-        const cx = 140, cy = 140, r = 115;
-        ctx.clearRect(0, 0, 280, 280);
 
-        // Cercle du réticule
+        // Responsive internal resolution
+        const size = canvas.clientWidth;
+        canvas.width = size;
+        canvas.height = size;
+
+        const ctx = canvas.getContext('2d');
+        const cx = size / 2;
+        const cy = size / 2;
+        const r = size * 0.41;
+
+        ctx.clearRect(0, 0, size, size);
+
         ctx.strokeStyle = "#300"; 
-        ctx.lineWidth = 3;
+        ctx.lineWidth = size * 0.01;
         ctx.beginPath(); 
         ctx.arc(cx, cy, r, 0, Math.PI * 2); 
         ctx.stroke();
 
-        // Graduation horaire (1 à 12)
         ctx.fillStyle = "#500"; 
-        ctx.font = "bold 14px Arial";
+        ctx.font = `${size * 0.05}px Arial`;
+
         for(let i = 1; i <= 12; i++) {
             let angle = (i * 30 - 90) * (Math.PI / 180);
-            ctx.fillText(i, cx - 6 + Math.cos(angle) * (r - 25), cy + 5 + Math.sin(angle) * (r - 25));
+            ctx.fillText(i, cx - (size*0.02) + Math.cos(angle) * (r - size*0.08),
+                            cy + (size*0.02) + Math.sin(angle) * (r - size*0.08));
         }
 
-        // Dessin de l'étoile Polaire (Point Rouge)
         let starAngle = (p * 30 - 90) * (Math.PI / 180);
-        ctx.shadowBlur = 15; 
+        ctx.shadowBlur = size * 0.06; 
         ctx.shadowColor = "red";
         ctx.fillStyle = "#ff0000";
         ctx.beginPath(); 
-        ctx.arc(cx + Math.cos(starAngle) * r, cy + Math.sin(starAngle) * r, 7, 0, Math.PI * 2); 
+        ctx.arc(cx + Math.cos(starAngle) * r,
+               cy + Math.sin(starAngle) * r,
+               size * 0.025, 0, Math.PI * 2); 
         ctx.fill();
     }
 
-    // Intervalle de mise à jour (1 seconde)
     setInterval(solve, 1000);
-    
-    // Calcul initial au chargement de la page
     solve();
 </script>
 </body>
