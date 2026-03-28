@@ -43,6 +43,19 @@
   input[type=range] {
     width: 100%;
   }
+
+  button {
+    background: #222;
+    color: #fff;
+    border: 1px solid #555;
+    padding: 6px 12px;
+    margin: 4px;
+    cursor: pointer;
+  }
+
+  button:hover {
+    background: #333;
+  }
 </style>
 </head>
 <body>
@@ -54,12 +67,18 @@
   <input id="timeSlider" type="range" min="-12" max="12" step="1" value="0">
 </div>
 
+<div class="slider-container">
+  <button id="modeFull">Vue complète</button>
+  <button id="modeInner">Vue interne (0–2 UA)</button>
+</div>
+
 <div class="wrapper">
   <canvas id="heliocentric"></canvas>
 </div>
 
 <script>
 let timeOffsetHours = 0;
+let mode = "full"; // "full" ou "inner"
 
 const COLORS = {
   mercury: "#bbbbbb",
@@ -78,6 +97,16 @@ const label = document.getElementById("offsetLabel");
 slider.oninput = () => {
   timeOffsetHours = Number(slider.value);
   label.textContent = (timeOffsetHours >= 0 ? "+" : "") + timeOffsetHours + "h";
+  drawHeliocentric();
+};
+
+document.getElementById("modeFull").onclick = () => {
+  mode = "full";
+  drawHeliocentric();
+};
+
+document.getElementById("modeInner").onclick = () => {
+  mode = "inner";
   drawHeliocentric();
 };
 
@@ -102,12 +131,19 @@ async function drawHeliocentric() {
 
   const planets = data.planets;
 
-  // Trouver l'orbite la plus grande (Neptune)
+  // Détermination de l'échelle selon le mode
   let maxR = 0;
-  for (const name in planets) {
-    const p = planets[name];
-    const r = Math.sqrt(p.x*p.x + p.y*p.y);
-    if (r > maxR) maxR = r;
+
+  if (mode === "full") {
+    // Vue complète : Neptune fixe l’échelle
+    for (const name in planets) {
+      const p = planets[name];
+      const r = Math.sqrt(p.x*p.x + p.y*p.y);
+      if (r > maxR) maxR = r;
+    }
+  } else {
+    // Vue interne : fenêtre 0–2 UA
+    maxR = 2;
   }
 
   // Echelle : UA → pixels
@@ -127,6 +163,9 @@ async function drawHeliocentric() {
     const p = planets[name];
     const r = Math.sqrt(p.x*p.x + p.y*p.y) * R;
 
+    // En mode interne, on n'affiche que les orbites < 2 UA
+    if (mode === "inner" && r > 2 * R) continue;
+
     ctx.beginPath();
     ctx.arc(CX, CY, r, 0, 2*Math.PI);
     ctx.stroke();
@@ -138,6 +177,10 @@ async function drawHeliocentric() {
 
   for (const name in planets) {
     const p = planets[name];
+    const r_ua = Math.sqrt(p.x*p.x + p.y*p.y);
+
+    // En mode interne, on ignore les géantes
+    if (mode === "inner" && r_ua > 2) continue;
 
     const x = CX + p.x * R;
     const y = CY - p.y * R;
