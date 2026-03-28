@@ -48,10 +48,18 @@ app.get("/api/planet/:name", (req, res) => {
 // ------------------------------------------------------------
 app.get("/api/heliocentric", (req, res) => {
   try {
-    const offset = Number(req.query.offset || 0);
-    const date = new Date(Date.now() + offset * 3600 * 1000);
+    let date;
 
-    const planets = getHeliocentricPositions(date);   // 🔥 MAINTENANT RECONNU
+    if (req.query.date) {
+      // Date simulée envoyée par le client (ISO)
+      date = new Date(req.query.date);
+    } else {
+      // Fallback : ancien système d’offset en heures
+      const offset = Number(req.query.offset || 0);
+      date = new Date(Date.now() + offset * 3600 * 1000);
+    }
+
+    const planets = getHeliocentricPositions(date);   // 🔥 MAINTENANT AVEC DATE SIMULÉE SI FOURNIE
 
     res.json(planets);
   } catch (e) {
