@@ -31,16 +31,38 @@
     border-radius: 50%;
     display: block;
   }
+
+  /* Slider */
+  .slider-container {
+    margin: 10px auto 20px auto;
+    width: 90%;
+    max-width: 600px;
+    color: #ccc;
+    font-size: 14px;
+  }
+
+  input[type=range] {
+    width: 100%;
+  }
 </style>
 </head>
 <body>
 
 <h2>Carte du ciel – Planètes</h2>
+
+<!-- Slider d’avance rapide -->
+<div class="slider-container">
+  Temps simulé : <span id="offsetLabel">0h</span><br>
+  <input id="timeSlider" type="range" min="-12" max="12" step="1" value="0">
+</div>
+
 <div class="wrapper">
   <canvas id="sky"></canvas>
 </div>
 
 <script>
+let timeOffsetHours = 0;
+
 const PLANETS = [
   "mercury",
   "venus",
@@ -63,10 +85,19 @@ const COLORS = {
   pluto: "#cccccc"
 };
 
+/* --- Slider --- */
+const slider = document.getElementById("timeSlider");
+const label = document.getElementById("offsetLabel");
+
+slider.oninput = () => {
+  timeOffsetHours = Number(slider.value);
+  label.textContent = (timeOffsetHours >= 0 ? "+" : "") + timeOffsetHours + "h";
+  drawSky();
+};
+
 async function drawSky() {
   const canvas = document.getElementById("sky");
 
-  // on force une surface de dessin carrée en pixels
   const size = Math.min(canvas.clientWidth, canvas.clientWidth);
   canvas.width = size;
   canvas.height = size;
@@ -76,7 +107,7 @@ async function drawSky() {
   const H = canvas.height;
   const CX = W / 2;
   const CY = H / 2;
-  const R = Math.min(W, H) / 2 - 20; // marge
+  const R = Math.min(W, H) / 2 - 20;
 
   ctx.clearRect(0, 0, W, H);
 
@@ -108,7 +139,7 @@ async function drawSky() {
     ctx.fillText(d.label, x - 10, y + 5);
   }
 
-  // Graduations d’azimut (tous les 30°)
+  // Graduations d’azimut
   ctx.strokeStyle = "#444";
   ctx.lineWidth = 1;
 
@@ -127,7 +158,7 @@ async function drawSky() {
     ctx.stroke();
   }
 
-  // Cercles d'altitude (30° et 60°)
+  // Cercles d'altitude
   ctx.strokeStyle = "#333";
   ctx.lineWidth = 1;
 
@@ -146,23 +177,21 @@ async function drawSky() {
   ctx.fillText("30°", CX + r30 + 5, CY);
   ctx.fillText("60°", CX + r60 + 5, CY);
 
-  // Planètes
+  // --- Planètes ---
   for (const planet of PLANETS) {
-    const res = await fetch(`/api/planet/${planet}`);
+    const res = await fetch(`/api/planet/${planet}?offset=${timeOffsetHours}`);
     const p = await res.json();
 
     const px = CX + p.proj_x * R;
     const py = CY - p.proj_y * R;
 
-    const PR = Math.max(6, R * 0.04); // taille relative
+    const PR = Math.max(6, R * 0.04);
 
-    // Disque plein
     ctx.beginPath();
     ctx.arc(px, py, PR, 0, 2*Math.PI);
     ctx.fillStyle = COLORS[planet];
     ctx.fill();
 
-    // Croissant uniquement pour Mercure et Vénus
     if (planet === "mercury" || planet === "venus") {
       const frac = p.illumination;
 
@@ -173,7 +202,6 @@ async function drawSky() {
       ctx.fill();
     }
 
-    // Nom de la planète
     ctx.fillStyle = "#fff";
     ctx.font = `${Math.round(W * 0.022)}px sans-serif`;
     ctx.fillText(planet.toUpperCase(), px + PR + 4, py);
