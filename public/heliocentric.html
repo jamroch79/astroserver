@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Système héliocentrique</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #000;
+    color: #fff;
+    text-align: center;
+  }
+
+  h2 {
+    margin: 8px 0;
+    font-size: 18px;
+  }
+
+  .wrapper {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto 8px auto;
+  }
+
+  canvas {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 1 / 1;
+    background: #111;
+    border-radius: 50%;
+    display: block;
+  }
+
+  .slider-container {
+    margin: 10px auto 20px auto;
+    width: 90%;
+    max-width: 600px;
+    color: #ccc;
+    font-size: 14px;
+  }
+
+  input[type=range] {
+    width: 100%;
+  }
+</style>
+</head>
+<body>
+
+<h2>Système héliocentrique</h2>
+
+<div class="slider-container">
+  Temps simulé : <span id="offsetLabel">0h</span><br>
+  <input id="timeSlider" type="range" min="-12" max="12" step="1" value="0">
+</div>
+
+<div class="wrapper">
+  <canvas id="heliocentric"></canvas>
+</div>
+
+<script>
+let timeOffsetHours = 0;
+
+const COLORS = {
+  mercury: "#bbbbbb",
+  venus:   "#ffd27f",
+  earth:   "#66aaff",
+  mars:    "#ff5533",
+  jupiter: "#ffddaa",
+  saturn:  "#e6c97a",
+  uranus:  "#66ccff",
+  neptune: "#3366ff"
+};
+
+const slider = document.getElementById("timeSlider");
+const label = document.getElementById("offsetLabel");
+
+slider.oninput = () => {
+  timeOffsetHours = Number(slider.value);
+  label.textContent = (timeOffsetHours >= 0 ? "+" : "") + timeOffsetHours + "h";
+  drawHeliocentric();
+};
+
+async function drawHeliocentric() {
+  const canvas = document.getElementById("heliocentric");
+
+  const size = Math.min(canvas.clientWidth, canvas.clientWidth);
+  canvas.width = size;
+  canvas.height = size;
+
+  const ctx = canvas.getContext("2d");
+  const W = canvas.width;
+  const H = canvas.height;
+  const CX = W / 2;
+  const CY = H / 2;
+
+  ctx.clearRect(0, 0, W, H);
+
+  // Récupération des données
+  const res = await fetch(`/api/heliocentric?offset=${timeOffsetHours}`);
+  const data = await res.json();
+
+  const planets = data.planets;
+
+  // Trouver l'orbite la plus grande (Neptune)
+  let maxR = 0;
+  for (const name in planets) {
+    const p = planets[name];
+    const r = Math.sqrt(p.x*p.x + p.y*p.y);
+    if (r > maxR) maxR = r;
+  }
+
+  // Echelle : UA → pixels
+  const R = (W/2 - 20) / maxR;
+
+  // Soleil
+  ctx.beginPath();
+  ctx.arc(CX, CY, 10, 0, 2*Math.PI);
+  ctx.fillStyle = "yellow";
+  ctx.fill();
+
+  // Orbites
+  ctx.strokeStyle = "#333";
+  ctx.lineWidth = 1;
+
+  for (const name in planets) {
+    const p = planets[name];
+    const r = Math.sqrt(p.x*p.x + p.y*p.y) * R;
+
+    ctx.beginPath();
+    ctx.arc(CX, CY, r, 0, 2*Math.PI);
+    ctx.stroke();
+  }
+
+  // Planètes
+  ctx.font = `${Math.round(W * 0.022)}px sans-serif`;
+  ctx.fillStyle = "#fff";
+
+  for (const name in planets) {
+    const p = planets[name];
+
+    const x = CX + p.x * R;
+    const y = CY - p.y * R;
+
+    ctx.beginPath();
+    ctx.arc(x, y, 6, 0, 2*Math.PI);
+    ctx.fillStyle = COLORS[name] || "#fff";
+    ctx.fill();
+
+    ctx.fillStyle = "#fff";
+    ctx.fillText(name.toUpperCase(), x + 8, y);
+  }
+}
+
+drawHeliocentric();
+window.addEventListener("resize", drawHeliocentric);
+setInterval(drawHeliocentric, 60000);
+</script>
+
+</body>
+</html>
