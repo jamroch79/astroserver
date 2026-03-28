@@ -31,9 +31,41 @@
     border-radius: 50%;
     display: block;
   }
+
+  /* Bouton mode nuit */
+  .night-btn {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      background: #200;
+      color: #ff5555;
+      border: 1px solid #ff5555;
+      padding: 8px 14px;
+      font-size: 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      z-index: 9999;
+  }
+
+  /* Mode nuit rouge */
+  body.night-mode {
+      background: #000;
+      color: #ff4444;
+  }
+
+  body.night-mode canvas {
+      background: #000;
+      border-color: #550000;
+  }
+
+  body.night-mode h2 {
+      color: #ff4444;
+  }
 </style>
 </head>
 <body>
+
+<button id="nightToggle" class="night-btn">MODE NUIT</button>
 
 <h2>Carte du ciel – Planètes</h2>
 <div class="wrapper">
@@ -183,6 +215,18 @@ async function drawSky() {
 drawSky();
 window.addEventListener("resize", drawSky);
 setInterval(drawSky, 60000);
+
+// Mode nuit : toggle + mémorisation
+const toggle = document.getElementById("nightToggle");
+
+if (localStorage.getItem("night") === "1") {
+    document.body.classList.add("night-mode");
+}
+
+toggle.onclick = () => {
+    document.body.classList.toggle("night-mode");
+    localStorage.setItem("night", document.body.classList.contains("night-mode") ? "1" : "0");
+};
 </script>
 
 </body>
