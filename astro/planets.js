@@ -161,7 +161,7 @@ export function getHeliocentricPositions(date = new Date()) {
 
   for (const body of bodies) {
     const pos = computeHeliocentricXY(body, time);
-    result[Body[body].toLowerCase()] = pos;
+    result[body.toLowerCase()] = pos;   // ✅ CORRECTION UNIQUE
   }
 
   return {
