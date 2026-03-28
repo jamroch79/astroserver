@@ -45,6 +45,23 @@ app.get("/api/planet/:name", (req, res) => {
 });
 
 // ------------------------------------------------------------
+// ROUTE HÉLIOCENTRIQUE
+// ------------------------------------------------------------
+app.get("/api/heliocentric", (req, res) => {
+  try {
+    const offset = Number(req.query.offset || 0);
+    const date = new Date(Date.now() + offset * 3600 * 1000);
+
+    const planets = getHeliocentricPositions(date);
+
+    res.json(planets);
+  } catch (e) {
+    res.status(400).json({ error: e.message });
+  }
+});
+
+
+// ------------------------------------------------------------
 // MOTEUR DE CALCUL ASTRONOMIQUE (POLARIS)
 // ------------------------------------------------------------
 
