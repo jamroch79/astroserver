@@ -27,9 +27,13 @@ app.get("/api/planet/:name", (req, res) => {
     const name = req.params.name;
     const loc = LOCATIONS.vourles; // ou req.query.site si tu veux choisir
 
+    // 🔥 AJOUT CHIRURGICAL : gestion de l’avance rapide
+    const offset = Number(req.query.offset || 0);
+    const date = new Date(Date.now() + offset * 3600 * 1000);
+
     const data = getPlanet(
       name,
-      new Date(),          // date actuelle
+      date,          // ⬅️ on remplace new Date() par la date simulée
       loc.lat,
       loc.lon
     );
@@ -39,6 +43,7 @@ app.get("/api/planet/:name", (req, res) => {
     res.status(400).json({ error: e.message });
   }
 });
+
 // ------------------------------------------------------------
 // MOTEUR DE CALCUL ASTRONOMIQUE (POLARIS)
 // ------------------------------------------------------------
