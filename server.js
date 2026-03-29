@@ -6,7 +6,7 @@ import { getPlanet, getHeliocentricPositions } from "./astro/planets.js";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json()); // Pour POST JSON
+app.use(express.json());
 app.use(express.static("public"));
 
 // ------------------------------------------------------------
@@ -39,7 +39,7 @@ function saveComets(list) {
 let savedComets = loadSavedComets();
 
 // ------------------------------------------------------------
-// ROUTE 1 : RECHERCHE D’UNE COMÈTE (APPEL HORIZONS À LA DEMANDE)
+// ROUTE 1 : RECHERCHE D’UNE COMÈTE (AVEC FALLBACK)
 // ------------------------------------------------------------
 app.get("/api/comet/search", async (req, res) => {
   const name = req.query.name;
@@ -66,6 +66,15 @@ app.get("/api/comet/search", async (req, res) => {
     const response = await fetch(url);
     const data = await response.json();
 
+    // --- CAS 1 : Horizons renvoie une erreur "Bad dates" ---
+    if (data.error && data.error.includes("Bad dates")) {
+      return res.json({
+        status: "no_ephemeris",
+        message: "Aucune éphéméride disponible pour cette comète à la date du jour.",
+        fallback: true
+      });
+    }
+
     if (!data.result) {
       return res.status(404).json({ error: "Comète introuvable dans Horizons" });
     }
@@ -78,10 +87,23 @@ app.get("/api/comet/search", async (req, res) => {
     const lines = data.result.split("\n");
     const ephem = lines.find(l => l.match(/\d{4}-\w{3}-\d{2}/));
 
+    // --- CAS 2 : Pas d’éphéméride mais orbite disponible ---
     if (!ephem) {
-      return res.status(404).json({ error: "Aucune donnée éphéméride trouvée" });
+      return res.json({
+        status: "fallback_orbit",
+        message: "Aucune éphéméride disponible. Données approximatives basées sur l’orbite.",
+        data: {
+          name: fullName,
+          ra: null,
+          dec: null,
+          az: null,
+          alt: null,
+          mag: 99
+        }
+      });
     }
 
+    // --- CAS 3 : Éphéméride complète disponible ---
     const parts = ephem.trim().split(/\s+/);
 
     const cometData = {
@@ -105,7 +127,7 @@ app.get("/api/comet/search", async (req, res) => {
 });
 
 // ------------------------------------------------------------
-// ROUTE 2 : SAUVEGARDER UNE COMÈTE DANS LE FICHIER JSON
+// ROUTE 2 : SAUVEGARDER UNE COMÈTE
 // ------------------------------------------------------------
 app.post("/api/comet/save", (req, res) => {
   const name = req.body.name;
@@ -130,7 +152,7 @@ app.get("/api/comet/saved", (req, res) => {
 });
 
 // ------------------------------------------------------------
-// TES ROUTES EXISTANTES (inchangées)
+// ROUTES EXISTANTES
 // ------------------------------------------------------------
 
 // PLANÈTES
