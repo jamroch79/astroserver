@@ -19,7 +19,7 @@ const LOCATIONS = {
 };
 
 // ------------------------------------------------------------
-// ROUTE PLANÈTES
+// PLANÈTES
 // ------------------------------------------------------------
 app.get("/api/planet/:name", (req, res) => {
   try {
@@ -38,7 +38,7 @@ app.get("/api/planet/:name", (req, res) => {
 });
 
 // ------------------------------------------------------------
-// ROUTE HÉLIOCENTRIQUE
+// HÉLIOCENTRIQUE
 // ------------------------------------------------------------
 app.get("/api/heliocentric", (req, res) => {
   try {
@@ -109,7 +109,7 @@ app.get("/api/polaris/:site", (req, res) => {
   const site = LOCATIONS[siteKey];
 
   if (!site) {
-    return res.status(400).json({ error: "Site non répertorié. Utilisez 'vourles' ou 'lans'." });
+    return res.status(400).json({ error: "Site non répertorié." });
   }
 
   const polarisData = computePolarisData(site.lat, site.lon);
@@ -163,13 +163,15 @@ app.get("/api/iss/:site", async (req, res) => {
 });
 
 // ------------------------------------------------------------
-// SOLEIL
+// SOLEIL (AVEC OFFSET)
 // ------------------------------------------------------------
 app.get("/api/sun", (req, res) => {
   const loc = LOCATIONS.vourles;
-  const now = new Date();
 
-  const sun = getSunPosition(now, loc.lat, loc.lon);
+  const offset = Number(req.query.offset || 0);
+  const date = new Date(Date.now() + offset * 3600 * 1000);
+
+  const sun = getSunPosition(date, loc.lat, loc.lon);
 
   res.json({
     status: "ok",
@@ -178,13 +180,15 @@ app.get("/api/sun", (req, res) => {
 });
 
 // ------------------------------------------------------------
-// LUNE
+// LUNE (AVEC OFFSET)
 // ------------------------------------------------------------
 app.get("/api/moon", (req, res) => {
   const loc = LOCATIONS.vourles;
-  const now = new Date();
 
-  const moon = getMoonPosition(now, loc.lat, loc.lon);
+  const offset = Number(req.query.offset || 0);
+  const date = new Date(Date.now() + offset * 3600 * 1000);
+
+  const moon = getMoonPosition(date, loc.lat, loc.lon);
 
   res.json({
     status: "ok",
