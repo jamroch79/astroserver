@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Carte du ciel – Planètes + Comètes</title>
+<title>Carte du ciel – Planètes</title>
 <style>
   html, body {
     margin: 0;
@@ -32,6 +32,7 @@
     display: block;
   }
 
+  /* Slider */
   .slider-container {
     margin: 10px auto 20px auto;
     width: 90%;
@@ -43,58 +44,16 @@
   input[type=range] {
     width: 100%;
   }
-
-  .comet-box {
-    margin: 10px auto;
-    width: 90%;
-    max-width: 600px;
-    color: #ccc;
-    font-size: 14px;
-  }
-
-  input[type=text] {
-    width: 60%;
-    padding: 6px;
-    font-size: 14px;
-  }
-
-  button {
-    padding: 6px 12px;
-    margin-left: 6px;
-    font-size: 14px;
-  }
-
-  select {
-    padding: 6px;
-    font-size: 14px;
-    margin-top: 6px;
-  }
 </style>
 </head>
 <body>
 
-<h2>Carte du ciel – Planètes + Comètes</h2>
+<h2>Carte du ciel – Planètes</h2>
 
-<!-- Slider -->
+<!-- Slider d’avance rapide -->
 <div class="slider-container">
   Temps simulé : <span id="offsetLabel">0h</span><br>
   <input id="timeSlider" type="range" min="-12" max="12" step="1" value="0">
-</div>
-
-<!-- Recherche de comète -->
-<div class="comet-box">
-  <input id="cometInput" type="text" placeholder="Nom de comète (ex: C/2023 A3)">
-  <button onclick="searchComet()">Rechercher</button>
-  <button onclick="saveComet()">Sauvegarder</button>
-
-  <br><br>
-  <label>Comètes enregistrées :</label><br>
-  <select id="savedComets" onchange="loadSavedComet()">
-    <option value="">-- Choisir --</option>
-  </select>
-
-  <div id="cometInfo" style="margin-top:10px; color:#8f8;">
-  </div>
 </div>
 
 <div class="wrapper">
@@ -103,16 +62,27 @@
 
 <script>
 let timeOffsetHours = 0;
-let currentComet = null;
 
 const PLANETS = [
-  "mercury","venus","mars","jupiter","saturn","uranus","neptune","pluto"
+  "mercury",
+  "venus",
+  "mars",
+  "jupiter",
+  "saturn",
+  "uranus",
+  "neptune",
+  "pluto"
 ];
 
 const COLORS = {
-  mercury:"#bbbbbb", venus:"#ffd27f", mars:"#ff5533",
-  jupiter:"#ffddaa", saturn:"#e6c97a", uranus:"#66ccff",
-  neptune:"#3366ff", pluto:"#cccccc"
+  mercury: "#bbbbbb",
+  venus: "#ffd27f",
+  mars: "#ff5533",
+  jupiter: "#ffddaa",
+  saturn: "#e6c97a",
+  uranus: "#66ccff",
+  neptune: "#3366ff",
+  pluto: "#cccccc"
 };
 
 /* --- Slider --- */
@@ -125,96 +95,6 @@ slider.oninput = () => {
   drawSky();
 };
 
-/* --- Charger les comètes enregistrées --- */
-async function loadSavedList() {
-  const res = await fetch("/api/comet/saved");
-  const list = await res.json();
-
-  const sel = document.getElementById("savedComets");
-  sel.innerHTML = `<option value="">-- Choisir --</option>`;
-
-  list.forEach(c => {
-    sel.innerHTML += `<option value="${c}">${c}</option>`;
-  });
-}
-
-loadSavedList();
-
-/* --- Charger une comète enregistrée --- */
-async function loadSavedComet() {
-  const name = document.getElementById("savedComets").value;
-  if (!name) return;
-
-  document.getElementById("cometInput").value = name;
-  await searchComet();
-}
-
-/* --- Rechercher une comète --- */
-async function searchComet() {
-  const name = document.getElementById("cometInput").value.trim();
-  if (!name) return;
-
-  const res = await fetch(`/api/comet/search?name=${encodeURIComponent(name)}`);
-  const data = await res.json();
-
-  if (data.error) {
-    document.getElementById("cometInfo").innerHTML = `<span style="color:#f88">${data.error}</span>`;
-    currentComet = null;
-    drawSky();
-    return;
-  }
-
-  currentComet = data.data;
-
-  document.getElementById("cometInfo").innerHTML =
-    `<b>${currentComet.name}</b><br>
-     RA: ${currentComet.ra}<br>
-     Dec: ${currentComet.dec}<br>
-     Alt: ${currentComet.alt}°<br>
-     Az: ${currentComet.az}°<br>
-     Mag: ${currentComet.mag}`;
-
-  drawSky();
-}
-
-/* --- Sauvegarder une comète --- */
-async function saveComet() {
-  const name = document.getElementById("cometInput").value.trim();
-  if (!name) return;
-
-  await fetch("/api/comet/save", {
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify({ name })
-  });
-
-  loadSavedList();
-}
-
-/* --- Dessiner la comète --- */
-function drawComet(ctx, CX, CY, R) {
-  if (!currentComet) return;
-
-  const az = currentComet.az * Math.PI / 180;
-  const alt = currentComet.alt;
-
-  if (alt < 0) return;
-
-  const r = R * (1 - alt / 90);
-
-  const x = CX + Math.sin(az) * r;
-  const y = CY - Math.cos(az) * r;
-
-  ctx.beginPath();
-  ctx.arc(x, y, 8, 0, 2*Math.PI);
-  ctx.fillStyle = "#00ffcc";
-  ctx.fill();
-
-  ctx.fillStyle = "#fff";
-  ctx.fillText(currentComet.name, x + 10, y);
-}
-
-/* --- Dessin du ciel --- */
 async function drawSky() {
   const canvas = document.getElementById("sky");
 
@@ -326,9 +206,6 @@ async function drawSky() {
     ctx.font = `${Math.round(W * 0.022)}px sans-serif`;
     ctx.fillText(planet.toUpperCase(), px + PR + 4, py);
   }
-
-  // --- Comète (si demandée) ---
-  drawComet(ctx, CX, CY, R);
 }
 
 drawSky();
