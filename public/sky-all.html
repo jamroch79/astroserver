@@ -2,7 +2,7 @@
 <html>
 <head>
 <meta charset="UTF-8">
-<title>Carte du ciel – Planètes</title>
+<title>Carte du ciel – Planètes, Soleil & Lune</title>
 <style>
   html, body {
     margin: 0;
@@ -32,7 +32,6 @@
     display: block;
   }
 
-  /* Slider */
   .slider-container {
     margin: 10px auto 20px auto;
     width: 90%;
@@ -48,9 +47,9 @@
 </head>
 <body>
 
-<h2>Carte du ciel – Planètes</h2>
+<h2>Carte du ciel – Planètes, Soleil & Lune</h2>
 
-<!-- Slider d’avance rapide -->
+<!-- Slider -->
 <div class="slider-container">
   Temps simulé : <span id="offsetLabel">0h</span><br>
   <input id="timeSlider" type="range" min="-12" max="12" step="1" value="0">
@@ -95,10 +94,47 @@ slider.oninput = () => {
   drawSky();
 };
 
+/* --- Utilitaire pour dessiner un objet céleste --- */
+function drawObject(ctx, CX, CY, R, az, alt, color, label) {
+  if (alt <= 0) return; // sous l’horizon
+
+  const radAz = az * Math.PI / 180;
+  const r = R * (1 - alt / 90);
+
+  const x = CX + Math.sin(radAz) * r;
+  const y = CY - Math.cos(radAz) * r;
+
+  const size = Math.max(6, R * 0.04);
+
+  ctx.beginPath();
+  ctx.arc(x, y, size, 0, 2 * Math.PI);
+  ctx.fillStyle = color;
+  ctx.fill();
+
+  ctx.fillStyle = "#fff";
+  ctx.font = `${Math.round(R * 0.08)}px sans-serif`;
+  ctx.fillText(label, x + size + 4, y);
+}
+
+/* --- Soleil --- */
+async function drawSun(ctx, CX, CY, R) {
+  const res = await fetch("/api/sun");
+  const sun = await res.json();
+  drawObject(ctx, CX, CY, R, sun.az, sun.alt, "yellow", "SUN");
+}
+
+/* --- Lune --- */
+async function drawMoon(ctx, CX, CY, R) {
+  const res = await fetch("/api/moon");
+  const moon = await res.json();
+  drawObject(ctx, CX, CY, R, moon.az, moon.alt, "white", "MOON");
+}
+
+/* --- Dessin principal --- */
 async function drawSky() {
   const canvas = document.getElementById("sky");
 
-  const size = Math.min(canvas.clientWidth, canvas.clientWidth);
+  const size = canvas.clientWidth;
   canvas.width = size;
   canvas.height = size;
 
@@ -111,7 +147,7 @@ async function drawSky() {
 
   ctx.clearRect(0, 0, W, H);
 
-  // cercle horizon
+  // Cercle horizon
   ctx.strokeStyle = "#555";
   ctx.beginPath();
   ctx.arc(CX, CY, R, 0, 2*Math.PI);
@@ -139,25 +175,6 @@ async function drawSky() {
     ctx.fillText(d.label, x - 10, y + 5);
   }
 
-  // Graduations d’azimut
-  ctx.strokeStyle = "#444";
-  ctx.lineWidth = 1;
-
-  for (let angle = 0; angle < 360; angle += 30) {
-    const rad = angle * Math.PI / 180;
-
-    const x1 = CX + Math.sin(rad) * R;
-    const y1 = CY - Math.cos(rad) * R;
-
-    const x2 = CX + Math.sin(rad) * (R - 20);
-    const y2 = CY - Math.cos(rad) * (R - 20);
-
-    ctx.beginPath();
-    ctx.moveTo(x1, y1);
-    ctx.lineTo(x2, y2);
-    ctx.stroke();
-  }
-
   // Cercles d'altitude
   ctx.strokeStyle = "#333";
   ctx.lineWidth = 1;
@@ -177,6 +194,12 @@ async function drawSky() {
   ctx.fillText("30°", CX + r30 + 5, CY);
   ctx.fillText("60°", CX + r60 + 5, CY);
 
+  // --- Soleil ---
+  await drawSun(ctx, CX, CY, R);
+
+  // --- Lune ---
+  await drawMoon(ctx, CX, CY, R);
+
   // --- Planètes ---
   for (const planet of PLANETS) {
     const res = await fetch(`/api/planet/${planet}?offset=${timeOffsetHours}`);
@@ -192,9 +215,9 @@ async function drawSky() {
     ctx.fillStyle = COLORS[planet];
     ctx.fill();
 
+    // Phases pour Mercure & Vénus
     if (planet === "mercury" || planet === "venus") {
       const frac = p.illumination;
-
       ctx.beginPath();
       ctx.arc(px, py, PR, Math.PI/2, -Math.PI/2, true);
       ctx.arc(px + (1 - frac) * PR, py, PR, -Math.PI/2, Math.PI/2, false);
