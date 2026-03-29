@@ -49,7 +49,6 @@
 
 <h2>Carte du ciel – Planètes, Soleil & Lune</h2>
 
-<!-- Slider -->
 <div class="slider-container">
   Temps simulé : <span id="offsetLabel">0h</span><br>
   <input id="timeSlider" type="range" min="-12" max="12" step="1" value="0">
@@ -84,7 +83,6 @@ const COLORS = {
   pluto: "#cccccc"
 };
 
-/* --- Slider --- */
 const slider = document.getElementById("timeSlider");
 const label = document.getElementById("offsetLabel");
 
@@ -96,7 +94,7 @@ slider.oninput = () => {
 
 /* --- Utilitaire pour dessiner un objet céleste --- */
 function drawObject(ctx, CX, CY, R, az, alt, color, label) {
-  if (alt <= 0) return; // sous l’horizon
+  if (alt <= 0) return;
 
   const radAz = az * Math.PI / 180;
   const r = R * (1 - alt / 90);
@@ -118,14 +116,14 @@ function drawObject(ctx, CX, CY, R, az, alt, color, label) {
 
 /* --- Soleil --- */
 async function drawSun(ctx, CX, CY, R) {
-  const res = await fetch("/api/sun");
+  const res = await fetch(`/api/sun?offset=${timeOffsetHours}`);
   const sun = await res.json();
   drawObject(ctx, CX, CY, R, sun.az, sun.alt, "yellow", "SUN");
 }
 
 /* --- Lune --- */
 async function drawMoon(ctx, CX, CY, R) {
-  const res = await fetch("/api/moon");
+  const res = await fetch(`/api/moon?offset=${timeOffsetHours}`);
   const moon = await res.json();
   drawObject(ctx, CX, CY, R, moon.az, moon.alt, "white", "MOON");
 }
@@ -215,7 +213,6 @@ async function drawSky() {
     ctx.fillStyle = COLORS[planet];
     ctx.fill();
 
-    // Phases pour Mercure & Vénus
     if (planet === "mercury" || planet === "venus") {
       const frac = p.illumination;
       ctx.beginPath();
