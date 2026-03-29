@@ -1,19 +1,18 @@
 import express from "express";
 import fetch from "node-fetch";
-import { getPlanet, getHeliocentricPositions } from "./astro/planets.js";   // 🔥 IMPORT CORRIGÉ
+import { getPlanet, getHeliocentricPositions } from "./astro/planets.js";
+import { getSunPosition, getMoonPosition } from "./astro/sunmoon.js";
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // ------------------------------------------------------------
-// CONFIGURATION ET CLÉS
+// CONFIGURATION
 // ------------------------------------------------------------
 const N2YO_KEY = process.env.N2YO_KEY;
 
-// Dossier public
 app.use(express.static("public"));
 
-// Coordonnées des sites
 const LOCATIONS = {
   vourles: { lat: 45.6601, lon: 4.7713, alt: 200, name: "Vourles" },
   lans:    { lat: 45.1391, lon: 5.5856, alt: 1000, name: "Lans-en-Vercors" }
@@ -30,14 +29,9 @@ app.get("/api/planet/:name", (req, res) => {
     const offset = Number(req.query.offset || 0);
     const date = new Date(Date.now() + offset * 3600 * 1000);
 
-    const data = getPlanet(
-      name,
-      date,
-      loc.lat,
-      loc.lon
-    );
-
+    const data = getPlanet(name, date, loc.lat, loc.lon);
     res.json(data);
+
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
@@ -51,26 +45,23 @@ app.get("/api/heliocentric", (req, res) => {
     let date;
 
     if (req.query.date) {
-      // Date simulée envoyée par le client (ISO)
       date = new Date(req.query.date);
     } else {
-      // Fallback : ancien système d’offset en heures
       const offset = Number(req.query.offset || 0);
       date = new Date(Date.now() + offset * 3600 * 1000);
     }
 
-    const planets = getHeliocentricPositions(date);   // 🔥 MAINTENANT AVEC DATE SIMULÉE SI FOURNIE
-
+    const planets = getHeliocentricPositions(date);
     res.json(planets);
+
   } catch (e) {
     res.status(400).json({ error: e.message });
   }
 });
 
 // ------------------------------------------------------------
-// MOTEUR DE CALCUL ASTRONOMIQUE (POLARIS)
+// POLARIS
 // ------------------------------------------------------------
-
 function getPolarisRA() {
   const now = new Date();
   const JD = (now / 86400000) + 2440587.5;
@@ -113,9 +104,6 @@ function computePolarisData(lat, lon) {
   };
 }
 
-// ------------------------------------------------------------
-// ROUTES API - POLARIS
-// ------------------------------------------------------------
 app.get("/api/polaris/:site", (req, res) => {
   const siteKey = req.params.site.toLowerCase();
   const site = LOCATIONS[siteKey];
@@ -137,7 +125,7 @@ app.get("/api/polaris/:site", (req, res) => {
 });
 
 // ------------------------------------------------------------
-// ROUTES API - TRANSITS ISS (N2YO)
+// ISS (N2YO)
 // ------------------------------------------------------------
 app.get("/api/iss/:site", async (req, res) => {
   const siteKey = req.params.site.toLowerCase();
@@ -156,31 +144,63 @@ app.get("/api/iss/:site", async (req, res) => {
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error("Réponse réseau N2YO non valide");
-    
+
     const data = await response.json();
-    
+
     res.json({
       site: site.name,
       request_timestamp: new Date().toISOString(),
       ...data
     });
+
   } catch (error) {
-    console.error(`Erreur lors de la récupération ISS pour ${siteKey}:`, error);
-    res.status(500).json({ 
-      error: "Erreur de communication avec le service N2YO",
-      details: error.message 
+    console.error(`Erreur ISS (${siteKey}):`, error);
+    res.status(500).json({
+      error: "Erreur de communication avec N2YO",
+      details: error.message
     });
   }
 });
 
 // ------------------------------------------------------------
-// INITIALISATION DU SERVEUR
+// SOLEIL
+// ------------------------------------------------------------
+app.get("/api/sun", (req, res) => {
+  const loc = LOCATIONS.vourles;
+  const now = new Date();
+
+  const sun = getSunPosition(now, loc.lat, loc.lon);
+
+  res.json({
+    status: "ok",
+    ...sun
+  });
+});
+
+// ------------------------------------------------------------
+// LUNE
+// ------------------------------------------------------------
+app.get("/api/moon", (req, res) => {
+  const loc = LOCATIONS.vourles;
+  const now = new Date();
+
+  const moon = getMoonPosition(now, loc.lat, loc.lon);
+
+  res.json({
+    status: "ok",
+    ...moon
+  });
+});
+
+// ------------------------------------------------------------
+// INITIALISATION
 // ------------------------------------------------------------
 app.listen(PORT, () => {
   console.log("--------------------------------------------------");
   console.log(`ASTRO SERVER INITIALISÉ SUR LE PORT : ${PORT}`);
-  console.log(`Lien Polaris Vourles : http://localhost:${PORT}/api/polaris/vourles`);
-  console.log(`Lien Polaris Lans    : http://localhost:${PORT}/api/polaris/lans`);
-  console.log(`Lien ISS Vourles     : http://localhost:${PORT}/api/iss/vourles`);
+  console.log(`Polaris Vourles : http://localhost:${PORT}/api/polaris/vourles`);
+  console.log(`ISS Vourles     : http://localhost:${PORT}/api/iss/vourles`);
+  console.log(`Soleil          : http://localhost:${PORT}/api/sun`);
+  console.log(`Lune            : http://localhost:${PORT}/api/moon`);
   console.log("--------------------------------------------------");
 });
