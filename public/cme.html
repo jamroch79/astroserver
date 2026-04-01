@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Dernière CME (NASA DONKI)</title>
+  <style>
+    body {
+      background: #000;
+      color: #fff;
+      font-family: Arial, sans-serif;
+      padding: 20px;
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    #cme-info {
+      background: #111;
+      padding: 20px;
+      border-radius: 10px;
+      line-height: 1.6;
+      font-size: 16px;
+    }
+    .label {
+      color: #0af;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>🌠 Dernière CME détectée (NASA DONKI)</h2>
+
+<div id="cme-info">Chargement des données CME...</div>
+
+<script>
+// Récupération des CME des 30 derniers jours
+const today = new Date();
+const past = new Date();
+past.setDate(today.getDate() - 30);
+
+const startDate = past.toISOString().split("T")[0];
+const endDate = today.toISOString().split("T")[0];
+
+const url = `https://kauai.ccmc.gsfc.nasa.gov/DONKI/WS/get/CME?startDate=${startDate}&endDate=${endDate}`;
+
+fetch(url)
+  .then(r => r.json())
+  .then(data => {
+
+    const container = document.getElementById("cme-info");
+
+    if (!Array.isArray(data) || data.length === 0) {
+      container.innerHTML = "Aucune CME détectée récemment.";
+      return;
+    }
+
+    // Trier par date décroissante
+    data.sort((a, b) => new Date(b.startTime) - new Date(a.startTime));
+
+    const cme = data[0];
+    const analysis = cme.cmeAnalyses?.find(a => a.isMostAccurate) || {};
+    const enlil = analysis.enlilList?.[0] || {};
+
+    const earthDirected = enlil.isEarthGB || enlil.isEarthMinorImpact;
+
+    container.innerHTML = `
+      <p><span class="label">Heure d'éjection :</span> ${cme.startTime}</p>
+      <p><span class="label">Source :</span> ${cme.sourceLocation || "Inconnue"}</p>
+      <p><span class="label">Type :</span> ${analysis.type || "N/A"}</p>
+      <p><span class="label">Vitesse :</span> ${analysis.speed || "N/A"} km/s</p>
+      <p><span class="label">Largeur angulaire :</span> ${analysis.halfAngle || "N/A"}°</p>
+
+      <h3>🌍 Impact Terre</h3>
+      <p><span class="label">Earth‑directed :</span> ${earthDirected ? "Oui" : "Non"}</p>
+      <p><span class="label">Arrivée prévue :</span> ${enlil.estimatedShockArrivalTime || "Non disponible"}</p>
+
+      <h3>📈 Intensité prévue (KP)</h3>
+      <p>Kp 18h : ${enlil.kp_18 || "N/A"}</p>
+      <p>Kp 90h : ${enlil.kp_90 || "N/A"}</p>
+      <p>Kp 135h : ${enlil.kp_135 || "N/A"}</p>
+      <p>Kp 180h : ${enlil.kp_180 || "N/A"}</p>
+    `;
+  })
+  .catch(err => {
+    document.getElementById("cme-info").innerHTML =
+      "Erreur lors du chargement des données CME.";
+    console.error(err);
+  });
+</script>
+
+</body>
+</html>
