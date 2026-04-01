@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Widget Aurores</title>
+<style>
+  body { background:#000; color:#fff; font-family:Arial; padding:20px; }
+  .box {
+    background:#111; padding:20px; border-radius:10px;
+    margin-bottom:20px; line-height:1.6;
+  }
+  .label { color:#0af; font-weight:bold; }
+  .risk { font-size:22px; font-weight:bold; }
+  button {
+    background:#0af; color:#000; padding:10px 20px;
+    border:none; border-radius:8px; cursor:pointer;
+    font-weight:bold; margin-bottom:20px;
+  }
+</style>
+</head>
+
+<body>
+
+<h2>🌌 Widget Aurores en temps réel</h2>
+
+<button onclick="refreshData()">Actualiser</button>
+
+<div id="widget" class="box">Chargement...</div>
+<div id="risk" class="box">Calcul du risque...</div>
+
+<script>
+let latestMag = null;
+let latestPlasma = null;
+
+function timeAgo(timestamp) {
+  const t = new Date(timestamp.replace(" ", "T") + "Z");
+  const diff = (Date.now() - t.getTime()) / 1000;
+  if (diff < 60) return `${Math.round(diff)} sec`;
+  return `${Math.round(diff/60)} min`;
+}
+
+function updateRisk() {
+  if (!latestMag || !latestPlasma) return;
+
+  const bz = latestMag.bz;
+  const bt = latestMag.bt;
+  const speed = latestPlasma.speed;
+  const density = latestPlasma.density;
+
+  // Scores
+  const Sm = Math.max(0, -bz) * (bt / 10);
+  const Sv = speed / 400;
+  const Sd = density / 5;
+
+  const score = Sm * Sv * (0.5 + Sd);
+
+  let level = "", color = "", comment = "";
+
+  if (score < 1) { level="Faible"; color="lightgreen"; comment="Conditions calmes."; }
+  else if (score < 2) { level="Modéré"; color="yellow"; comment="Aurores possibles aux hautes latitudes."; }
+  else if (score < 4) { level="Élevé"; color="orange"; comment="Bon potentiel d'aurores."; }
+  else if (score < 7) { level="Très élevé"; color="red"; comment="Aurores probables à latitudes moyennes."; }
+  else { level="Extrême"; color="violet"; comment="Tempête géomagnétique possible."; }
+
+  document.getElementById("risk").innerHTML = `
+    <h3>🌍 Risque d'aurore</h3>
+    <p class="risk" style="color:${color};">${level}</p>
+    <p><span class="label">Score :</span> ${score.toFixed(2)}</p>
+    <p>${comment}</p>
+  `;
+}
+
+function refreshData() {
+  document.getElementById("widget").innerHTML = "Actualisation...";
+  document.getElementById("risk").innerHTML = "Calcul...";
+
+  // MAG (Bz, Bt)
+  fetch("https://services.swpc.noaa.gov/products/solar-wind/mag-1-day.json")
+    .then(r => r.json())
+    .then(data => {
+      const last = data[data.length - 1];
+      latestMag = {
+        time: last[0],
+        bx: parseFloat(last[1]),
+        by: parseFloat(last[2]),
+        bz: parseFloat(last[3]),
+        bt: parseFloat(last[6])
+      };
+      updateWidget();
+      updateRisk();
+    });
+
+  // PLASMA (vitesse, densité)
+  fetch("https://services.swpc.noaa.gov/products/solar-wind/plasma-1-day.json")
+    .then(r => r.json())
+    .then(data => {
+      const last = data[data.length - 1];
+      latestPlasma = {
+        time: last[0],
+        density: parseFloat(last[1]),
+        speed: parseFloat(last[2]),
+        temperature: parseFloat(last[3])
+      };
+      updateWidget();
+      updateRisk();
+    });
+}
+
+function updateWidget() {
+  if (!latestMag || !latestPlasma) return;
+
+  const bzColor =
+    latestMag.bz < -10 ? "red" :
+    latestMag.bz < -5 ? "orange" :
+    latestMag.bz < 0 ? "yellow" : "lightgreen";
+
+  const speedColor =
+    latestPlasma.speed > 700 ? "red" :
+    latestPlasma.speed > 600 ? "orange" :
+    latestPlasma.speed > 500 ? "yellow" : "lightgreen";
+
+  document.getElementById("widget").innerHTML = `
+    <h3>🧲 Vent solaire</h3>
+    <p><span class="label">Dernière mise à jour :</span> ${timeAgo(latestMag.time)}</p>
+    <p><span class="label">Bz :</span> <span style="color:${bzColor};">${latestMag.bz.toFixed(2)} nT</span></p>
+    <p><span class="label">Bt :</span> ${latestMag.bt.toFixed(2)} nT</p>
+    <p><span class="label">Vitesse :</span> <span style="color:${speedColor};">${latestPlasma.speed.toFixed(1)} km/s</span></p>
+    <p><span class="label">Densité :</span> ${latestPlasma.density.toFixed(2)} p/cm³</p>
+  `;
+}
+
+refreshData();
+</script>
+
+</body>
+</html>
