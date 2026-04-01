@@ -27,48 +27,78 @@
 </div>
 
 <script>
-  const url = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json";
+const url = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json";
 
-  fetch(url)
-    .then(r => r.json())
-    .then(data => {
+fetch(url)
+  .then(r => r.json())
+  .then(data => {
 
-      // On ignore la première ligne (en-têtes)
-      const rows = data.slice(1);
+    // -------------------------------
+    // 1) Détection automatique du format
+    // -------------------------------
+    let labels = [];
+    let kp = [];
 
-      const labels = rows.map(r => r[0].replace(".000", ""));
-      const kp = rows.map(r => parseFloat(r[1]));
+    // --- Format A : tableau d’objets (NOUVEAU FORMAT NOAA) ---
+    if (Array.isArray(data) && typeof data[0] === "object" && !Array.isArray(data[0])) {
+      labels = data.map(d => (d.time_tag || "").replace("T", " "));
+      kp = data.map(d => parseFloat(d.Kp || d.kp || d.kp_index || 0));
+    }
 
-      const colors = kp.map(k => {
-        if (k <= 3) return "rgba(0, 200, 0, 0.9)";        // Vert
-        if (k <= 5) return "rgba(255, 140, 0, 0.9)";      // Orange
-        if (k <= 7) return "rgba(255, 0, 0, 0.9)";        // Rouge
-        return "rgba(200, 0, 255, 0.9)";                   // Pourpre
-      });
+    // --- Format B : tableau de tableaux (ANCIEN FORMAT NOAA) ---
+    else if (Array.isArray(data) && Array.isArray(data[0])) {
+      const rows = data.slice(1); // ignorer l’en-tête
+      labels = rows.map(r => (r[0] || "").replace(".000", ""));
+      kp = rows.map(r => parseFloat(r[1] || 0));
+    }
 
-      new Chart(document.getElementById("kp3h"), {
-        type: "bar",
-        data: {
-          labels: labels,
-          datasets: [{
-            label: "KP (3h)",
-            data: kp,
-            backgroundColor: colors,
-            borderColor: "#fff",
-            borderWidth: 1
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: { beginAtZero: true, max: 9, ticks: { color: "#fff" }},
-            x: { ticks: { color: "#fff", maxTicksLimit: 12 }}
-          },
-          plugins: { legend: { labels: { color: "#fff" }}}
-        }
-      });
+    // --- Sécurité : si rien n’a été détecté ---
+    if (labels.length === 0 || kp.length === 0) {
+      console.error("Format NOAA inconnu :", data);
+      alert("Impossible de lire les données NOAA (format inconnu).");
+      return;
+    }
+
+    // -------------------------------
+    // 2) Couleurs dynamiques
+    // -------------------------------
+    const colors = kp.map(k => {
+      if (k <= 3) return "rgba(0, 200, 0, 0.9)";        // Vert
+      if (k <= 5) return "rgba(255, 140, 0, 0.9)";      // Orange
+      if (k <= 7) return "rgba(255, 0, 0, 0.9)";        // Rouge
+      return "rgba(200, 0, 255, 0.9)";                  // Pourpre
     });
+
+    // -------------------------------
+    // 3) Affichage Chart.js
+    // -------------------------------
+    new Chart(document.getElementById("kp3h"), {
+      type: "bar",
+      data: {
+        labels: labels,
+        datasets: [{
+          label: "KP (3h)",
+          data: kp,
+          backgroundColor: colors,
+          borderColor: "#fff",
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { beginAtZero: true, max: 9, ticks: { color: "#fff" }},
+          x: { ticks: { color: "#fff", maxTicksLimit: 12 }}
+        },
+        plugins: { legend: { labels: { color: "#fff" }}}
+      }
+    });
+  })
+  .catch(err => {
+    console.error("Erreur NOAA :", err);
+    alert("Impossible de charger les données NOAA.");
+  });
 </script>
 
 </body>
